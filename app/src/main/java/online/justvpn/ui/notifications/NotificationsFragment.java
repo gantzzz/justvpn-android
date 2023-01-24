@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import online.justvpn.MainActivity;
 import online.justvpn.databinding.FragmentNotificationsBinding;
 
 public class NotificationsFragment extends Fragment {
@@ -26,6 +27,13 @@ public class NotificationsFragment extends Fragment {
 
         final TextView textView = binding.textNotifications;
         notificationsViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
+
+        // In Night mode, remove the background image
+        if (((MainActivity)getActivity()).IsNightMode())
+        {
+            root.setBackgroundResource(0);
+        }
+
         return root;
     }
 

@@ -1,5 +1,6 @@
 package online.justvpn.ui.dashboard;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,9 +8,12 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import online.justvpn.MainActivity;
+import online.justvpn.R;
 import online.justvpn.databinding.FragmentDashboardBinding;
 
 public class DashboardFragment extends Fragment {
@@ -26,6 +30,12 @@ public class DashboardFragment extends Fragment {
 
         final TextView textView = binding.textDashboard;
         dashboardViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
+
+        if (((MainActivity)getActivity()).IsNightMode())
+        {
+            root.setBackgroundResource(0);
+        }
+
         return root;
     }
 
