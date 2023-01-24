@@ -2,6 +2,7 @@ package online.justvpn;
 
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.widget.ImageView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -38,9 +39,15 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(binding.navView, navController);
+
+        // In Night mode, remove the background image
+        if (IsNightMode())
+        {
+            ((ImageView)findViewById(R.id.BackgroundImageView)).setImageDrawable(null);
+        }
     }
 
-    public boolean IsNightMode()
+    private boolean IsNightMode()
     {
         int nightModeFlags = getApplicationContext().getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         switch (nightModeFlags)

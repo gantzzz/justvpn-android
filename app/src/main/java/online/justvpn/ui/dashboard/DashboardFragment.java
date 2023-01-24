@@ -31,11 +31,6 @@ public class DashboardFragment extends Fragment {
         final TextView textView = binding.textDashboard;
         dashboardViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
 
-        if (((MainActivity)getActivity()).IsNightMode())
-        {
-            root.setBackgroundResource(0);
-        }
-
         return root;
     }
 

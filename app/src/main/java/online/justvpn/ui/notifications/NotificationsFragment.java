@@ -28,12 +28,6 @@ public class NotificationsFragment extends Fragment {
         final TextView textView = binding.textNotifications;
         notificationsViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
 
-        // In Night mode, remove the background image
-        if (((MainActivity)getActivity()).IsNightMode())
-        {
-            root.setBackgroundResource(0);
-        }
-
         return root;
     }
 
