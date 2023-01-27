@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.Spinner;
+import android.widget.TextView;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
@@ -93,6 +94,10 @@ public class HomeFragment extends Fragment {
     }
     private void onOnOffButtonPressed(View view)
     {
+        // update Status line to "Connecting..."
+        TextView v = Objects.requireNonNull(getView()).findViewById(R.id.StatusText);
+        v.setText(R.string.status_connecting);
+
         Vibrator vibe = (Vibrator) Objects.requireNonNull(getActivity()).getSystemService(Context.VIBRATOR_SERVICE);
         vibe.vibrate(100);
 
