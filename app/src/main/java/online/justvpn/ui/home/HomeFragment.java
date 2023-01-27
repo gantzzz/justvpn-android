@@ -4,6 +4,7 @@ import static online.justvpn.ui.home.State.IDLE;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.os.Bundle;
@@ -30,6 +31,7 @@ import java.util.Objects;
 import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
 import online.justvpn.ui.VpnService.JustVpnAPI;
+import online.justvpn.ui.VpnService.JustVpnService;
 import online.justvpn.ui.adaptors.LocationSelectorAdapter;
 enum  State
 {
@@ -150,6 +152,10 @@ public class HomeFragment extends Fragment {
 
         Vibrator vibe = (Vibrator) Objects.requireNonNull(getActivity()).getSystemService(Context.VIBRATOR_SERVICE);
         vibe.vibrate(100);
+
+        // Start JustVPN service
+        Intent intent = new Intent(getContext(), JustVpnService.class);
+        getContext().startService(intent);
 
         ImageView iv = ((ImageView)view);
 
