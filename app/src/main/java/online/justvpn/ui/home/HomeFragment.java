@@ -3,10 +3,12 @@ package online.justvpn.ui.home;
 import static online.justvpn.ui.home.State.IDLE;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,6 +21,8 @@ import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -42,6 +46,7 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private final JustVpnAPI mApi = new JustVpnAPI();
+    private boolean mUserVpnAllowed = false;
 
     State mState = IDLE;
 
@@ -59,7 +64,28 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         updateLocationSelector();
         setupOnOffButtonOnClickListener();
+        requestVpnServicePermissionDialog();
         mState = IDLE;
+    }
+
+    private void requestVpnServicePermissionDialog()
+    {
+        // Ask for vpn service permission
+        Intent dialog = VpnService.prepare(getContext());
+        if (dialog != null)
+        {
+            ActivityResultLauncher<Intent> VpnServiceActivityResultLauncher = registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        mUserVpnAllowed = result.getResultCode() == Activity.RESULT_OK;
+                    });
+            VpnServiceActivityResultLauncher.launch(dialog);
+        }
+        else
+        {
+            // already permitted
+            mUserVpnAllowed = true;
+        }
     }
 
     private void updateLocationSelector()

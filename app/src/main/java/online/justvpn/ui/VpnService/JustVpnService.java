@@ -23,7 +23,7 @@ public class JustVpnService extends VpnService {
         Log.d(TAG, "VPN service started");
 
         // Create a new Builder object
-        Builder builder = new Builder();
+        mBuilder = new Builder();
 
         // Create connection reference
         Thread thread = new Thread(new JustVpnConnection(mBuilder,this));
