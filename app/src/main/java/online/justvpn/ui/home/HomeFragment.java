@@ -1,5 +1,7 @@
 package online.justvpn.ui.home;
 
+import static online.justvpn.ui.home.State.IDLE;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.AnimationDrawable;
@@ -29,11 +31,17 @@ import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
 import online.justvpn.ui.VpnService.JustVpnAPI;
 import online.justvpn.ui.adaptors.LocationSelectorAdapter;
+enum  State
+{
+    IDLE, CONNECTING, CONNECTED, FAILED;
+}
 
 public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private final JustVpnAPI mApi = new JustVpnAPI();
+
+    State mState = IDLE;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -49,6 +57,7 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         updateLocationSelector();
         setupOnOffButtonOnClickListener();
+        mState = IDLE;
     }
 
     private void updateLocationSelector()
@@ -92,18 +101,59 @@ public class HomeFragment extends Fragment {
         ImageView v = Objects.requireNonNull(getView()).findViewById(R.id.onoffButtonImageView);
         v.setOnClickListener(this::onOnOffButtonPressed);
     }
-    private void onOnOffButtonPressed(View view)
-    {
-        // update Status line to "Connecting..."
+    private void onOnOffButtonPressed(View view) {
+
+        switch (mState)
+        {
+            case IDLE:
+                Connecting(view);
+                break;
+            case CONNECTING:
+                // just for now change the state to connect
+                mState = State.CONNECTED;
+                UpdateStatusText(view);
+                ImageView iv = ((ImageView)view);
+                ((AnimationDrawable)iv.getDrawable()).stop();
+                iv.setImageDrawable(getResources().getDrawable(R.drawable.button_state_on));
+                break;
+            case CONNECTED:
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void UpdateStatusText(View view) {
         TextView v = Objects.requireNonNull(getView()).findViewById(R.id.StatusText);
-        v.setText(R.string.status_connecting);
+        switch (mState)
+        {
+            case IDLE:
+                v.setText(R.string.status_tap_to_connect);
+                break;
+            case CONNECTING:
+                v.setText(R.string.status_connecting);
+                break;
+            case CONNECTED:
+                v.setText(R.string.status_connected);
+                break;
+            default:
+                // just for now stop the animation
+                break;
+        }
+    }
+
+    private void Connecting(View view) {
+        // update the state
+        mState = State.CONNECTING;
+        // update Status line to "Connecting..."
+        UpdateStatusText(view);
 
         Vibrator vibe = (Vibrator) Objects.requireNonNull(getActivity()).getSystemService(Context.VIBRATOR_SERVICE);
         vibe.vibrate(100);
 
         ImageView iv = ((ImageView)view);
-        int transitionDuration = 500;
 
+        /* int transitionDuration = 500;
         TransitionDrawable transitionDrawable = (TransitionDrawable) iv.getDrawable();
         transitionDrawable.startTransition(transitionDuration);
 
@@ -111,13 +161,14 @@ public class HomeFragment extends Fragment {
         handler.postDelayed(() -> {
             // after transition has finished one way, start reverse transition
             transitionDrawable.reverseTransition(transitionDuration);
-        }, transitionDuration);
+        }, transitionDuration);*/
 
+        final Handler handler = new Handler(Looper.getMainLooper());
         handler.postDelayed(() -> {
             // after transition has finally finished, start the animation
             iv.setImageResource(R.drawable.onoff_button_animation);
             ((AnimationDrawable)iv.getDrawable()).start();
-        }, transitionDuration * 2);
+        }, 0);
     }
 
     @Override

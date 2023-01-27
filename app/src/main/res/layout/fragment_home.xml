@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:textColor="@color/white"
         android:textSize="32dp"
+        android:text="@string/status_tap_to_connect"
         android:fontFamily="sans-serif"
         android:paddingTop="70dp"
         app:layout_constraintLeft_toLeftOf="parent"
