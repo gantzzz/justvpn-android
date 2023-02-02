@@ -22,11 +22,13 @@ public class JustVpnService extends VpnService {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "VPN service started");
 
+        String sServerAddress = intent.getStringExtra("server_address");
+
         // Create a new Builder object
         mBuilder = new Builder();
 
         // Create connection reference
-        Thread thread = new Thread(new JustVpnConnection(mBuilder,this));
+        Thread thread = new Thread(new JustVpnConnection(mBuilder,this, sServerAddress));
         mConnectionThread.set(thread);
         thread.start();
 

@@ -16,10 +16,10 @@ import online.justvpn.ui.VpnService.JustVpnAPI;
 
 public class LocationSelectorAdapter extends BaseAdapter{
     private final Context mContext;
-    private final ArrayList<JustVpnAPI.ServerDataModel> mData;
+    private final ArrayList<JustVpnAPI.StatsDataModel> mData;
     private int nSelectedItem = -1;
 
-    public LocationSelectorAdapter(Context context, ArrayList<JustVpnAPI.ServerDataModel> data) {
+    public LocationSelectorAdapter(Context context, ArrayList<JustVpnAPI.StatsDataModel> data) {
         this.mContext = context;
         this.mData = data;
     }
@@ -38,12 +38,24 @@ public class LocationSelectorAdapter extends BaseAdapter{
             convertView = inflater.inflate(R.layout.location_selector_item_layout, parent, false);
         }
 
+        int icon = 0;
+
         // convert country short name to full name
         Locale l = new Locale("", mData.get(position).sCountry);
-        String titleText = l.getDisplayCountry();
+        String sCountry = l.getDisplayCountry();
+        String titleText;
+        if (!mData.get(position).sCountry.equals(mContext.getResources().getString(R.string.select_fastest_location)))
+        {
+            titleText = sCountry;
+        }
+        // special handling for auto selection
+        else
+        {
+            titleText = mData.get(position).sCountry;
+            icon = R.mipmap.ic_world_foreground;
+        }
 
         // get icon resource id
-        int icon;
         switch (mData.get(position).sCountry)
         {
             case "US":
@@ -52,12 +64,7 @@ public class LocationSelectorAdapter extends BaseAdapter{
             case "NL":
                 icon = R.mipmap.ic_nl_foreground;
                 break;
-            case "auto":
-                icon = R.mipmap.ic_world_foreground;
-                titleText = mContext.getResources().getString(R.string.select_fastest_location);
-                break;
             default:
-                icon = 0;
                 break;
         }
 
@@ -79,11 +86,15 @@ public class LocationSelectorAdapter extends BaseAdapter{
     }
 
     @Override
-    public JustVpnAPI.ServerDataModel getItem(int position) {
+    public JustVpnAPI.StatsDataModel getItem(int position) {
         return mData.get(position);
     }
 
     public void setSelectedItemIcon(int nSelectedItem, View view) {
         this.nSelectedItem = nSelectedItem;
+    }
+
+    public JustVpnAPI.StatsDataModel getSelectedItem() {
+        return getItem(nSelectedItem);
     }
 }

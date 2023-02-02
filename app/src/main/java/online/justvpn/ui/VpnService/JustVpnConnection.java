@@ -30,27 +30,31 @@ public class JustVpnConnection implements Runnable {
         CONNECTION_STATE_ACTIVE,        // connection is established completely and IP the packets are being forwarded
         CONNECTION_STATE_DISCONNECTED,  // the client is not connected anymore
         CONNECTION_STATE_NO_SLOTS,      // selected server cannot handle any more connections as it's full
+        CONNECTION_STATE_TIMED_OUT,     // the connection shall be monitored and this state applies
+                                        // when there was no communication with the server for some time
         CONNECTION_STATE_FAILED         // connection attempt has failed by some reason
     }
     private CONNECTION_STATE mConnectionState = CONNECTION_STATE.CONNECTION_STATE_IDLE;
     private VpnService.Builder mBuilder;
     private VpnService mService;
+    private String mServerAddress;
     private DatagramChannel mServerChannel;
 
     // The number of attempts to handshake with the server
     private int MAX_HANDSHAKE_ATTEMPTS = 10;
 
-    JustVpnConnection(VpnService.Builder builder, JustVpnService service) // TODO: ", Server server"
+    JustVpnConnection(VpnService.Builder builder, JustVpnService service, String server_address) // TODO: ", Server server"
     {
         mBuilder = builder;
         mService = service;
+        mServerAddress = server_address;
     }
 
     @Override
     public void run() {
         try
         {
-            final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName("justvpn.online"), 8811);
+            final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress), 8811);
             start(serverAddress);
         }
         catch (IOException | IllegalArgumentException | IllegalStateException | InterruptedException e)
@@ -249,7 +253,7 @@ public class JustVpnConnection implements Runnable {
 
     private boolean handshake() throws IOException {
         // Buffer for data
-        ByteBuffer packet = ByteBuffer.allocate(1500);
+        ByteBuffer packet = ByteBuffer.allocate(128);
 
         boolean bHandshakeOK = false;
         for (int i = 0; i < MAX_HANDSHAKE_ATTEMPTS; i++)
@@ -265,6 +269,7 @@ public class JustVpnConnection implements Runnable {
             else
             {
                 // TODO: Proper error handling
+                // possibly just write log
                 continue;
             }
 

@@ -2,12 +2,10 @@ package online.justvpn.ui.home;
 
 import static online.justvpn.ui.home.State.IDLE;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
-import android.graphics.drawable.TransitionDrawable;
 import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,7 +28,10 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import java.util.ArrayList;
-import java.util.Objects;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
@@ -47,6 +48,8 @@ public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
     private final JustVpnAPI mApi = new JustVpnAPI();
     private boolean mUserVpnAllowed = false;
+
+    private List<JustVpnAPI.StatsDataModel> mServerStats;
 
     State mState = IDLE;
 
@@ -91,21 +94,22 @@ public class HomeFragment extends Fragment {
     private void updateLocationSelector()
     {
         // request servers listD
-        mApi.getServers(getContext(), servers -> {
-            ArrayList<JustVpnAPI.ServerDataModel> dataModels = new ArrayList<>();
+        mApi.getStats(getContext(), stats -> {
+            mServerStats = stats;
 
+            ArrayList<JustVpnAPI.StatsDataModel> adapterItems = new ArrayList<>();
             // automatic selection item goes on top
-            JustVpnAPI.ServerDataModel modelAuto = new JustVpnAPI.ServerDataModel();
-            modelAuto.sCountry = "auto";
-            dataModels.add(modelAuto);
+            JustVpnAPI.StatsDataModel modelAuto = new JustVpnAPI.StatsDataModel();
+            modelAuto.sCountry = getResources().getString(R.string.select_fastest_location);
+            adapterItems.add(modelAuto);
 
-            // add the rest of the servers
-            for (JustVpnAPI.ServerDataModel s: servers)
+            // add the rest of the stats
+            for (JustVpnAPI.StatsDataModel s: stats)
             {
-                dataModels.add(s);
-                LocationSelectorAdapter ad = new LocationSelectorAdapter(getContext(), dataModels);
+                adapterItems.add(s);
+                LocationSelectorAdapter ad = new LocationSelectorAdapter(getContext(), adapterItems);
 
-                Spinner spinner = Objects.requireNonNull(getView()).findViewById(R.id.locationSelectorSpinner);
+                Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
 
                 spinner.setAdapter(ad);
                 spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -126,7 +130,7 @@ public class HomeFragment extends Fragment {
     private void setupOnOffButtonOnClickListener()
     {
         // set onclick listener for the on/off button
-        ImageView v = Objects.requireNonNull(getView()).findViewById(R.id.onoffButtonImageView);
+        ImageView v = requireView().findViewById(R.id.onoffButtonImageView);
         v.setOnClickListener(this::onOnOffButtonPressed);
     }
     private void onOnOffButtonPressed(View view) {
@@ -152,7 +156,7 @@ public class HomeFragment extends Fragment {
     }
 
     private void UpdateStatusText(View view) {
-        TextView v = Objects.requireNonNull(getView()).findViewById(R.id.StatusText);
+        TextView v = requireView().findViewById(R.id.StatusText);
         switch (mState)
         {
             case IDLE:
@@ -170,18 +174,63 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    private void startVpnService()
+    {
+        // Get the selected item's ip address
+        Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
+        LocationSelectorAdapter ad = (LocationSelectorAdapter) spinner.getAdapter();
+        JustVpnAPI.StatsDataModel server = ad.getSelectedItem();
+
+        String server_address;
+
+        // In case of auto location selection, pick up the fastest location via API
+        if (server.sCountry.equals(getContext().getResources().getString(R.string.select_fastest_location)))
+        {
+            server_address = getFastestLocation();
+        }
+        else
+        {
+            server_address = server.sIp;
+        }
+
+        Intent intent = new Intent(getContext(), JustVpnService.class);
+
+        intent.putExtra("server_address", server_address);
+        getContext().startService(intent);
+    }
+
+    private String getFastestLocation()
+    {
+        String sAddress = "";
+
+        if (mServerStats.size() < 1)
+        {
+            return sAddress;
+        }
+
+        List stats = new ArrayList<>(mServerStats);
+        Collections.sort(stats, (Comparator<JustVpnAPI.StatsDataModel>) (a, b) -> a.mConnNumber - b.mConnNumber);
+        JustVpnAPI.StatsDataModel fastest = (JustVpnAPI.StatsDataModel)stats.get(0);
+        return fastest.sIp;
+    }
+
+    private void stopVpnService()
+    {
+        Intent intent = new Intent(getContext(), JustVpnService.class);
+        getContext().stopService(intent);
+    }
+
     private void Connecting(View view) {
         // update the state
         mState = State.CONNECTING;
         // update Status line to "Connecting..."
         UpdateStatusText(view);
 
-        Vibrator vibe = (Vibrator) Objects.requireNonNull(getActivity()).getSystemService(Context.VIBRATOR_SERVICE);
+        Vibrator vibe = (Vibrator) requireActivity().getSystemService(Context.VIBRATOR_SERVICE);
         vibe.vibrate(100);
 
         // Start JustVPN service
-        Intent intent = new Intent(getContext(), JustVpnService.class);
-        getContext().startService(intent);
+        startVpnService();
 
         ImageView iv = ((ImageView)view);
 
