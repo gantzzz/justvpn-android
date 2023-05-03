@@ -60,7 +60,6 @@ public class JustVpnAPI {
         }
         return action_text;
     }
-
     public static int actionFromText(String action)
     {
         int act = -1;
@@ -89,23 +88,25 @@ public class JustVpnAPI {
         return act;
     }
 
-    public interface onServersDownloadedInterface {
-        void onServersDownloadReady(List<JustVpnAPI.ServerDataModel> servers);
+    public interface onGetStatsInterface {
+        void onGetStatsReady(List<StatsDataModel> servers);
     }
-    public static class ServerDataModel
+    public static class StatsDataModel
     {
         public int mId = -1;
         public String sIp;
         public String sCountry;
         public boolean bActive = false;
+        public int mCapacity = -1;
+        public int mConnNumber = -1;
     }
-    public void getServers(Context context, onServersDownloadedInterface callback)
+    public void getStats(Context context, onGetStatsInterface callback)
     {
-        ArrayList<ServerDataModel> servers = new ArrayList<>();
+        ArrayList<StatsDataModel> stats = new ArrayList<>();
 
         RequestQueue queue = Volley.newRequestQueue(context);
-        String get_servers = "http://justvpn.online/api/getservers";
-        StringRequest signalRequest = new StringRequest(Request.Method.GET, get_servers,
+        String get_stats = "http://justvpn.online/api/getstats";
+        StringRequest signalRequest = new StringRequest(Request.Method.GET, get_stats,
                 resp ->
                 {
                     try
@@ -113,22 +114,26 @@ public class JustVpnAPI {
                         JSONArray jArray = new JSONArray(resp);
                         for (int i = 0; i < jArray.length(); i++)
                         {
-                            ServerDataModel server = new ServerDataModel();
+                            StatsDataModel stat = new StatsDataModel();
                             JSONObject jsonObject = jArray.getJSONObject(i);
                             if (jsonObject.has("id") &&
                                 jsonObject.has("ip") &&
                                 jsonObject.has("country") &&
-                                jsonObject.has("active"))
+                                jsonObject.has("active") &&
+                                jsonObject.has("capacity") &&
+                                jsonObject.has("conn_number"))
                             {
-                                server.mId = jsonObject.getInt("id");
-                                server.sIp = jsonObject.getString("ip");
-                                server.sCountry = jsonObject.getString("country");
-                                server.bActive = jsonObject.getBoolean("active");
+                                stat.mId = jsonObject.getInt("id");
+                                stat.sIp = jsonObject.getString("ip");
+                                stat.sCountry = jsonObject.getString("country");
+                                stat.bActive = jsonObject.getBoolean("active");
+                                stat.mCapacity = jsonObject.getInt("capacity");
+                                stat.mConnNumber = jsonObject.getInt("conn_number");
                             }
-                            servers.add(server);
+                            stats.add(stat);
                         }
 
-                        callback.onServersDownloadReady(servers);
+                        callback.onGetStatsReady(stats);
                     }
                     catch (JSONException e)
                     {

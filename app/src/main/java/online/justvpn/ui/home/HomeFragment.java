@@ -65,7 +65,7 @@ public class HomeFragment extends Fragment {
 
     @MainThread
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        updateLocationSelector();
+        updateLocationSelector(); // TODO: Should be called periodically?
         setupOnOffButtonOnClickListener();
         requestVpnServicePermissionDialog();
         mState = IDLE;
