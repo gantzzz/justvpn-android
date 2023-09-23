@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 import online.justvpn.R;
-import online.justvpn.ui.VpnService.JustVpnAPI;
+import online.justvpn.VpnService.JustVpnAPI;
 
 public class LocationSelectorAdapter extends BaseAdapter{
     private final Context mContext;

@@ -7,29 +7,54 @@
     tools:context=".ui.home.HomeFragment"
     android:gravity="center_vertical">
 
-    <TextView
+    <TextSwitcher
         android:id="@+id/StatusText"
+        android:layout_gravity="center"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:textSize="32dp"
-        android:text="@string/status_tap_to_connect"
-        android:fontFamily="sans-serif"
-        android:paddingTop="70dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent" />
-
-    <ImageView
-        android:id="@+id/onoffButtonImageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/button_off_to_on_transition"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out">
+        <TextView
+            android:gravity="center"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="23sp"
+            android:textColor="@color/white"/>
+        <TextView
+            android:gravity="center"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="23sp"
+            android:textColor="@color/white"/>
+
+    </TextSwitcher>
+
+    <ImageView
+        android:id="@+id/buttonImageView"
+        android:layout_width="272dp"
+        android:layout_height="250dp"
+        android:src="@drawable/lock_icon"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:contentDescription="@string/app_name"
         app:layout_constraintTop_toBottomOf="@id/StatusText" />
 
+    <Space
+        android:id="@+id/space"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonImageView"/>
+
     <androidx.cardview.widget.CardView
-        android:id="@+id/locationSelectorCardView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="10dp"
@@ -37,7 +62,7 @@
         app:cardCornerRadius="50dp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/onoffButtonImageView">
+        app:layout_constraintTop_toBottomOf="@+id/space">
 
         <Spinner
             android:id="@+id/locationSelectorSpinner"
@@ -45,6 +70,7 @@
             android:layout_marginStart="0dp"
             android:layout_height="80dp"
             android:spinnerMode="dialog"
+            android:contentDescription="@string/select_location"
             android:prompt="@string/select_location"/>
     </androidx.cardview.widget.CardView>
 </androidx.constraintlayout.widget.ConstraintLayout>
