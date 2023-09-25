@@ -25,6 +25,9 @@ import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+
+import com.android.volley.VolleyError;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,38 +104,58 @@ public class HomeFragment extends Fragment {
 
     private void updateLocationSelector()
     {
-        // request servers listD
-        mApi.getStats(getContext(), stats -> {
-            mServerStats = stats;
+        final int[] nNextRequestMilliseconds = {30000}; // default value
+        mApi.getStats(getContext(), new JustVpnAPI.onGetStatsInterface() {
+            @Override
+            public void onGetStatsReady(List<JustVpnAPI.StatsDataModel> stats) {
+                mServerStats = stats;
 
-            ArrayList<JustVpnAPI.StatsDataModel> adapterItems = new ArrayList<>();
-            // automatic selection item goes on top
-            JustVpnAPI.StatsDataModel modelAuto = new JustVpnAPI.StatsDataModel();
-            modelAuto.sCountry = getResources().getString(R.string.select_fastest_location);
-            adapterItems.add(modelAuto);
+                ArrayList<JustVpnAPI.StatsDataModel> adapterItems = new ArrayList<>();
+                // automatic selection item goes on top
+                JustVpnAPI.StatsDataModel modelAuto = new JustVpnAPI.StatsDataModel();
+                modelAuto.sCountry = getResources().getString(R.string.select_fastest_location);
+                adapterItems.add(modelAuto);
 
-            // add the rest of the stats
-            for (JustVpnAPI.StatsDataModel s: stats)
-            {
-                adapterItems.add(s);
-                LocationSelectorAdapter ad = new LocationSelectorAdapter(getContext(), adapterItems);
+                // add the rest of the stats
+                for (JustVpnAPI.StatsDataModel s: stats)
+                {
+                    adapterItems.add(s);
+                    LocationSelectorAdapter ad = new LocationSelectorAdapter(getContext(), adapterItems);
 
-                Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
+                    Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
 
-                spinner.setAdapter(ad);
-                spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                        ad.setSelectedItemIcon(i, view);
-                    }
+                    spinner.setAdapter(ad);
+                    spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                            ad.setSelectedItemIcon(i, view);
+                        }
 
-                    @Override
-                    public void onNothingSelected(AdapterView<?> adapterView) {
+                        @Override
+                        public void onNothingSelected(AdapterView<?> adapterView) {
 
-                    }
-                });
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onGetStatsError(VolleyError error) {
+
+                // Request stats again earlier
+                nNextRequestMilliseconds[0] = 3000;
             }
         });
+
+        // Update periodically
+        final Handler handler = new Handler(Looper.getMainLooper());
+        Runnable getStatsRunnable = new Runnable() {
+            @Override
+            public void run() {
+                updateLocationSelector();
+            }
+        };
+        handler.postDelayed(getStatsRunnable, nNextRequestMilliseconds[0]);
     }
 
     private void setupOnOffButtonOnClickListener()
@@ -160,6 +183,13 @@ public class HomeFragment extends Fragment {
 
     public void SetStatusViewText(int id)
     {
+        String textToSet = getResources().getString(id);
+
+        // Don't update with the same text
+        if (GetStatusViewText().equals(textToSet))
+        {
+            return;
+        }
         TextSwitcher v = requireView().findViewById(R.id.StatusText);
 
         // Cleanup the view first
@@ -178,8 +208,7 @@ public class HomeFragment extends Fragment {
         }
 
         // set new string
-        String text = getResources().getString(id);
-        v.setText(text);
+        v.setText(textToSet);
     }
 
     public String GetStatusViewText()
@@ -211,6 +240,7 @@ public class HomeFragment extends Fragment {
                 StartConnectingAnimation();
                 break;
             case CONNECTED:
+            case ACTIVE:
                 SetStatusViewText(R.string.status_connected);
                 iv.setImageDrawable(getResources().getDrawable(R.drawable.vpn_on_icon));
                 break;
@@ -221,24 +251,33 @@ public class HomeFragment extends Fragment {
                 break;
             case HANDSHAKE_FAILED:
                 SetStatusViewText(R.string.status_handshake_failed);
-                // after 5 seconds, revert status message to default
-                final Handler handler = new Handler(Looper.getMainLooper());
-
-                handler.postDelayed(() ->
-                {
-                    // Don't change back to idle if the text has been already changed from some other place
-                    if (GetStatusViewText().equals(getResources().getString(R.string.status_handshake_failed)))
-                    {
-                        SetStatusViewText(R.string.status_tap_to_connect);
-                    }
-                }, 5000);
+                resetStatusMessageDelayed(5000);
+                break;
+            case RECONNECTING:
+                StartConnectingAnimation();
+                SetStatusViewText(R.string.status_reconnecting);
+                break;
             default:
                 // just for now stop the animation
+                resetStatusMessageDelayed(5000);
                 iv.setImageDrawable(getResources().getDrawable(R.drawable.lock_icon));
                 break;
         }
     }
 
+    private void resetStatusMessageDelayed(int delay)
+    {
+        final Handler handler = new Handler(Looper.getMainLooper());
+
+        handler.postDelayed(() ->
+        {
+            // Don't change back to idle if the text has been already changed from some other place
+            if (GetStatusViewText().equals(getResources().getString(R.string.status_handshake_failed)))
+            {
+                SetStatusViewText(R.string.status_tap_to_connect);
+            }
+        }, delay);
+    }
     private void startVpnService()
     {
         // Get the selected item's ip address
@@ -313,8 +352,8 @@ public class HomeFragment extends Fragment {
             public int dir = 0;
             @Override
             public void run() {
-                int animTimeMillis = 400;
-                if (mState == Connection.State.CONNECTING) {
+                int animTimeMillis = 600;
+                if (mState == Connection.State.CONNECTING || mState == Connection.State.RECONNECTING) {
                     if (dir == 0) // forward
                     {
                         crossfader.startTransition(animTimeMillis);

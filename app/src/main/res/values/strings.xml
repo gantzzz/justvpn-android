@@ -10,5 +10,6 @@
     <string name="status_connected">Connected</string>
     <string name="status_disconnecting">Disconnecting...</string>
     <string name="status_handshake_failed">Connection failed</string>
+    <string name="status_reconnecting">Reconnecting ...</string>
 
 </resources>

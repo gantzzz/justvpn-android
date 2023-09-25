@@ -46,7 +46,15 @@ public class LocationSelectorAdapter extends BaseAdapter{
         String titleText;
         if (!mData.get(position).sCountry.equals(mContext.getResources().getString(R.string.select_fastest_location)))
         {
-            titleText = sCountry;
+            if (!sCountry.isEmpty())
+            {
+                titleText = sCountry;
+            }
+            else
+            {
+                // If country is not available, display the ip address
+                titleText = mData.get(position).sIp;
+            }
         }
         // special handling for auto selection
         else
@@ -65,6 +73,7 @@ public class LocationSelectorAdapter extends BaseAdapter{
                 icon = R.mipmap.ic_nl_foreground;
                 break;
             default:
+                icon = R.mipmap.ic_world_foreground;
                 break;
         }
 

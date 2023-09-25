@@ -10,8 +10,8 @@ android {
         applicationId "online.justvpn"
         minSdk 26
         targetSdk 33
-        versionCode 1
-        versionName "1.0"
+        versionCode 51
+        versionName "NG: Kill switch"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

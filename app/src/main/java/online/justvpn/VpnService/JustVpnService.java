@@ -34,11 +34,8 @@ public class JustVpnService extends VpnService {
         }
         String sServerAddress = intent.getStringExtra("server_address");
 
-        // Create a new Builder object
-        mBuilder = new Builder();
-
         // Create connection reference
-        mVpnConnection = new JustVpnConnection(mBuilder, this, sServerAddress);
+        mVpnConnection = new JustVpnConnection(this, sServerAddress);
         Thread thread = new Thread(mVpnConnection);
 
         mConnectionThreadReference.set(thread);
@@ -47,6 +44,11 @@ public class JustVpnService extends VpnService {
         Log.d("JUSTVPN:","Service started id: " + this.hashCode());
 
         return START_STICKY;
+    }
+
+    public Builder getNewBuilder()
+    {
+        return new Builder();
     }
 
     private void StopVpnConnection()

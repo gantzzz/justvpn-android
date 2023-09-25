@@ -12,6 +12,7 @@ public class Connection {
         NO_SLOTS,      // selected server cannot handle any more connections as it's full
         TIMED_OUT,     // the connection shall be monitored and this state applies
         // when there was no communication with the server for some time
+        RECONNECTING, // The states indicate the connection is being re-established
         HANDSHAKE_FAILED, // This state applies on the handshake failure
         FAILED         // connection attempt has failed by some reason
     }

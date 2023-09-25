@@ -1,10 +1,10 @@
 package online.justvpn.VpnService;
 
 import android.content.Context;
-import android.util.Log;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
@@ -21,13 +21,15 @@ public class JustVpnAPI {
     static final int CONTROL_ACTION_CONNECT = 0;
     static final int CONTROL_ACTION_KEEPALIVE = 1;
     static final int CONTROL_ACTION_DISCONNECT = 2;
-    static final int CONTROL_ACTION_GET_PARAMETERS = 3;
-    static final int CONTROL_ACTION_CONFIGURED = 4;
-    static final int CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN = 5;
+    static final int CONTROL_ACTION_DISCONNECTED = 3;
+    static final int CONTROL_ACTION_GET_PARAMETERS = 4;
+    static final int CONTROL_ACTION_CONFIGURED = 5;
+    static final int CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN = 6;
 
     public static final String CONTROL_ACTION_CONNECT_TEXT = "action:connect";
     public static final String CONTROL_ACTION_KEEPALIVE_TEXT = "action:keepalive";
     public static final String CONTROL_ACTION_DISCONNECT_TEXT = "action:disconnect";
+    public static final String CONTROL_ACTION_DISCONNECTED_TEXT = "action:disconnected";
     public static final String CONTROL_ACTION_GET_PARAMETERS_TEXT = "action:getparameters";
     public static final String CONTROL_ACTION_CONFIGURED_TEXT = "action:configured";
     public static final String CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN_TEXT = "action:verifysubscription";
@@ -46,6 +48,9 @@ public class JustVpnAPI {
             case CONTROL_ACTION_DISCONNECT:
                 action_text = CONTROL_ACTION_DISCONNECT_TEXT;
                 break;
+            case CONTROL_ACTION_DISCONNECTED:
+                action_text = CONTROL_ACTION_DISCONNECTED_TEXT;
+                break;
             case CONTROL_ACTION_GET_PARAMETERS:
                 action_text = CONTROL_ACTION_GET_PARAMETERS_TEXT;
                 break;
@@ -60,10 +65,23 @@ public class JustVpnAPI {
         }
         return action_text;
     }
+    public static String getReason(String action)
+    {
+        String[] splitAction = action.split(";");
+        if (splitAction.length > 1)
+        {
+            return splitAction[1];
+        }
+        return "";
+    }
     public static int actionFromText(String action)
     {
         int act = -1;
-        switch (action) {
+
+        // some controls have reason
+        String splitAction = action.split(";")[0];
+
+        switch (splitAction) {
             case CONTROL_ACTION_CONNECT_TEXT:
                 act = CONTROL_ACTION_CONNECT;
                 break;
@@ -72,6 +90,9 @@ public class JustVpnAPI {
                 break;
             case CONTROL_ACTION_DISCONNECT_TEXT:
                 act = CONTROL_ACTION_DISCONNECT;
+                break;
+            case CONTROL_ACTION_DISCONNECTED_TEXT:
+                act = CONTROL_ACTION_DISCONNECTED;
                 break;
             case CONTROL_ACTION_GET_PARAMETERS_TEXT:
                 act = CONTROL_ACTION_GET_PARAMETERS;
@@ -90,6 +111,7 @@ public class JustVpnAPI {
 
     public interface onGetStatsInterface {
         void onGetStatsReady(List<StatsDataModel> servers);
+        void onGetStatsError(VolleyError error);
     }
     public static class StatsDataModel
     {
@@ -142,8 +164,7 @@ public class JustVpnAPI {
                 }
                 , error ->
                 {
-                    // TODO: Retry? I don't know what to do in this case.
-                    Log.w("JustVpn API error: ", error);
+                    callback.onGetStatsError(error);
                 });
 
         queue.add(signalRequest);

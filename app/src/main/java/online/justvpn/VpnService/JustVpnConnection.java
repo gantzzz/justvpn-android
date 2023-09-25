@@ -18,12 +18,17 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import online.justvpn.Definitions.Connection;
 
 public class JustVpnConnection implements Runnable {
     private Thread mReceiverThread;
+    private Thread mCheckConnectionThread;
+    Instant mLastKeepaliveReceivedTimestamp;
+
     ParcelFileDescriptor mVPNInterface = null;
     private int mMTU;
 
@@ -33,30 +38,62 @@ public class JustVpnConnection implements Runnable {
     private String mServerAddress;
     private DatagramChannel mServerChannel;
 
+    // This is the time in milliseconds indicating how often the server will send keepalive control messages
+    private int mKeepaliveIntervalMs = - 1;
+
     // The number of attempts to handshake with the server
     private int MAX_HANDSHAKE_ATTEMPTS = 10;
 
-    JustVpnConnection(VpnService.Builder builder, JustVpnService service, String server_address) // TODO: ", Server server"
+    JustVpnConnection(JustVpnService service, String server_address) // TODO: ", Server server"
     {
-        mBuilder = builder;
         mService = service;
         mServerAddress = server_address;
+        mReceiverThread = null;
+        mCheckConnectionThread = null;
     }
 
     @Override
     public void run() {
-        try
+        while (!mConnectionState.equals(Connection.State.DISCONNECTED))
         {
-            final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress), 8811);
-            start(serverAddress);
-        }
-        catch (IOException | IllegalArgumentException | IllegalStateException | InterruptedException e)
-        {
-            Log.d("JUSTVPN:", "An exception occurred: " + e);
-        }
-        finally
-        {
-            setConnectionState(Connection.State.DISCONNECTED);
+            try
+            {
+                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress), 8811);
+                start(serverAddress);
+            }
+            catch (IOException | IllegalArgumentException | IllegalStateException | InterruptedException e)
+            {
+                Log.d("JUSTVPN:", "An exception occurred: " + e);
+            }
+            finally
+            {
+                // we got disconnected by some reason either we detected the traffic
+                // is not flowing through or the server has disconnected us for some reason
+                // We want to protect our traffic to come though public network,
+                // so keep the VPN tunnel established and keep reconnecting.
+                if (mConnectionState != Connection.State.DISCONNECTED)
+                {
+                    setConnectionState(Connection.State.RECONNECTING);
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                else
+                {
+                    if ( mVPNInterface != null)
+                    {
+                        try {
+                            mVPNInterface.close();
+                            mVPNInterface = null;
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    setConnectionState(Connection.State.DISCONNECTED);
+                }
+            }
         }
     }
 
@@ -100,10 +137,15 @@ public class JustVpnConnection implements Runnable {
             if (mVPNInterface != null)
             {
                 mVPNInterface.close();
+                mVPNInterface = null;
             }
             if (mReceiverThread != null)
             {
                 mReceiverThread.interrupt();
+            }
+            if (mCheckConnectionThread != null)
+            {
+                mCheckConnectionThread.interrupt();
             }
 
         } catch (IOException e) {
@@ -146,6 +188,10 @@ public class JustVpnConnection implements Runnable {
         setConnectionState(Connection.State.CONNECTED);
 
         // start VPN routine
+        if (mVPNInterface != null)
+        {
+            mVPNInterface.close();
+        }
         mVPNInterface = mBuilder.establish();
 
         // Tell the server we're configured
@@ -157,10 +203,15 @@ public class JustVpnConnection implements Runnable {
 
         setConnectionState(Connection.State.ACTIVE);
 
+        mLastKeepaliveReceivedTimestamp = Instant.now();
+
+        // start check connection thread
+        startCheckConnectionThread();
+
         // Start VPN routine
         startReceiverThread();
 
-        // ... and process outgoing packages
+        // process outgoing packages
         int nEmptyPacketCounter = 0;
         FileInputStream in = new FileInputStream(mVPNInterface.getFileDescriptor());
         ByteBuffer packet = ByteBuffer.allocate(mMTU);
@@ -190,8 +241,46 @@ public class JustVpnConnection implements Runnable {
         Log.e("JUSTVPN","Send thread stopped");
     }
 
+    private void startCheckConnectionThread() {
+        if (mCheckConnectionThread != null)
+        {
+            mCheckConnectionThread.interrupt();
+        }
+        mCheckConnectionThread = new Thread(() ->
+        {
+            while (mConnectionState.equals(Connection.State.ACTIVE) ||
+                    mConnectionState.equals(Connection.State.CONNECTED))
+            {
+                Duration delta = Duration.between(mLastKeepaliveReceivedTimestamp, Instant.now());
+                if (delta.toMillis() > mKeepaliveIntervalMs * 3)
+                {
+                    // We don't get keepalives for a while indicate timeout and start reconnecting routine
+                    setConnectionState(Connection.State.TIMED_OUT);
+                }
+                try {
+                    if (mKeepaliveIntervalMs > 0)
+                    {
+                        Thread.sleep(mKeepaliveIntervalMs);
+                    }
+                    else {
+                        Thread.sleep(15000);
+                    }
+
+                } catch (InterruptedException e) {
+                    Log.d("JUSTVPN:","Exception: " + e + e.getMessage());
+                }
+            }
+            Log.e("JUSTVPN","Check connection thread stopped");
+        });
+        mCheckConnectionThread.start();
+    }
+
     private void startReceiverThread()
     {
+        if (mReceiverThread != null)
+        {
+            mReceiverThread.interrupt();
+        }
         mReceiverThread = new Thread(() ->
         {
             try
@@ -236,8 +325,16 @@ public class JustVpnConnection implements Runnable {
             case JustVpnAPI.CONTROL_ACTION_KEEPALIVE:
                 // Response to the server with keepalive
                 sendControlMsg(JustVpnAPI.CONTROL_ACTION_KEEPALIVE);
+                mLastKeepaliveReceivedTimestamp = Instant.now();
                 break;
-            // TODO: Make server to send "action:disconnect" to the client that has not responded to keepalives.
+
+            case JustVpnAPI.CONTROL_ACTION_DISCONNECTED:
+                String sReason = JustVpnAPI.getReason(new String(p.array(), 1, len -1));
+                if (sReason.equals("reason:timedout"))
+                {
+                    setConnectionState(Connection.State.TIMED_OUT);
+                }
+                break;
             default:
                 break;
         }
@@ -252,6 +349,8 @@ public class JustVpnConnection implements Runnable {
     }
 
     private boolean configure() throws IOException {
+        mBuilder = ((JustVpnService)mService).getNewBuilder();
+
         boolean bConfigureOK = false;
 
         // Buffer for data
@@ -294,6 +393,11 @@ public class JustVpnConnection implements Runnable {
                         break;
                     case "dns":
                         mBuilder.addDnsServer(value);
+                        break;
+                    case "keepalive_interval_ms":
+                        mKeepaliveIntervalMs = Integer.parseInt(value);
+                        break;
+                    default:
                         break;
                 }
             }
