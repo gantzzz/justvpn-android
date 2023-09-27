@@ -35,7 +35,7 @@ public class JustVpnConnection implements Runnable {
     private Connection.State mConnectionState = Connection.State.IDLE;
     private VpnService.Builder mBuilder;
     private VpnService mService;
-    private String mServerAddress;
+    private JustVpnAPI.ServerDataModel mServerAddress;
     private DatagramChannel mServerChannel;
 
     // This is the time in milliseconds indicating how often the server will send keepalive control messages
@@ -44,12 +44,21 @@ public class JustVpnConnection implements Runnable {
     // The number of attempts to handshake with the server
     private int MAX_HANDSHAKE_ATTEMPTS = 10;
 
-    JustVpnConnection(JustVpnService service, String server_address) // TODO: ", Server server"
+    JustVpnConnection(JustVpnService service, JustVpnAPI.ServerDataModel ServerDataModel) // TODO: ", Server server"
     {
         mService = service;
-        mServerAddress = server_address;
+        mServerAddress = ServerDataModel;
         mReceiverThread = null;
         mCheckConnectionThread = null;
+    }
+
+    public JustVpnAPI.ServerDataModel GetServerDataModel()
+    {
+        return mServerAddress;
+    }
+    public Connection.State GetConnectionState()
+    {
+        return mConnectionState;
     }
 
     @Override
@@ -58,7 +67,7 @@ public class JustVpnConnection implements Runnable {
         {
             try
             {
-                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress), 8811);
+                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress.sIp), 8811);
                 start(serverAddress);
             }
             catch (IOException | IllegalArgumentException | IllegalStateException | InterruptedException e)
@@ -343,7 +352,7 @@ public class JustVpnConnection implements Runnable {
     private void setConnectionState(Connection.State state)
     {
         mConnectionState = state;
-        Intent intent = new Intent("connection.state");
+        Intent intent = new Intent("online.justvpn.connection.state");
         intent.putExtra("state", mConnectionState.ordinal());
         mService.sendBroadcast(intent);
     }

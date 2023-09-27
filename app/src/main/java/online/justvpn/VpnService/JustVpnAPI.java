@@ -12,8 +12,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class JustVpnAPI {
 
@@ -110,10 +112,10 @@ public class JustVpnAPI {
     }
 
     public interface onGetStatsInterface {
-        void onGetStatsReady(List<StatsDataModel> servers);
+        void onGetStatsReady(List<ServerDataModel> servers);
         void onGetStatsError(VolleyError error);
     }
-    public static class StatsDataModel
+    public static class ServerDataModel implements Serializable
     {
         public int mId = -1;
         public String sIp;
@@ -121,10 +123,37 @@ public class JustVpnAPI {
         public boolean bActive = false;
         public int mCapacity = -1;
         public int mConnNumber = -1;
+
+        @Override
+        public int hashCode() {
+            // return Objects.hash(mId, sIp, sCountry, bActive, mCapacity, mConnNumber);
+            return Objects.hash(mId, sIp);
+        }
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            ServerDataModel other = (ServerDataModel) o;
+
+            // Compare relevant fields for equality
+            /* return mId == other.mId &&
+                    Objects.equals(sIp, other.sIp) &&
+                    Objects.equals(sCountry, other.sCountry) &&
+                    Objects.equals(bActive, other.bActive) &&
+                    mCapacity == other.mCapacity &&
+                    mConnNumber== other.mConnNumber; */
+            return mId == other.mId &&
+                    Objects.equals(sIp, other.sIp);
+        }
     }
     public void getStats(Context context, onGetStatsInterface callback)
     {
-        ArrayList<StatsDataModel> stats = new ArrayList<>();
+        if (context == null)
+        {
+            return;
+        }
+        ArrayList<ServerDataModel> stats = new ArrayList<>();
 
         RequestQueue queue = Volley.newRequestQueue(context);
         String get_stats = "http://justvpn.online/api/getstats";
@@ -136,7 +165,7 @@ public class JustVpnAPI {
                         JSONArray jArray = new JSONArray(resp);
                         for (int i = 0; i < jArray.length(); i++)
                         {
-                            StatsDataModel stat = new StatsDataModel();
+                            ServerDataModel stat = new ServerDataModel();
                             JSONObject jsonObject = jArray.getJSONObject(i);
                             if (jsonObject.has("id") &&
                                 jsonObject.has("ip") &&

@@ -16,10 +16,10 @@ import online.justvpn.VpnService.JustVpnAPI;
 
 public class LocationSelectorAdapter extends BaseAdapter{
     private final Context mContext;
-    private final ArrayList<JustVpnAPI.StatsDataModel> mData;
+    private final ArrayList<JustVpnAPI.ServerDataModel> mData;
     private int nSelectedItem = -1;
 
-    public LocationSelectorAdapter(Context context, ArrayList<JustVpnAPI.StatsDataModel> data) {
+    public LocationSelectorAdapter(Context context, ArrayList<JustVpnAPI.ServerDataModel> data) {
         this.mContext = context;
         this.mData = data;
     }
@@ -57,6 +57,7 @@ public class LocationSelectorAdapter extends BaseAdapter{
             }
         }
         // special handling for auto selection
+        // sCounty here is set to "Fastest location"
         else
         {
             titleText = mData.get(position).sCountry;
@@ -95,15 +96,17 @@ public class LocationSelectorAdapter extends BaseAdapter{
     }
 
     @Override
-    public JustVpnAPI.StatsDataModel getItem(int position) {
+    public JustVpnAPI.ServerDataModel getItem(int position) {
         return mData.get(position);
     }
 
-    public void setSelectedItemIcon(int nSelectedItem, View view) {
+    public void setSelectedItem(int nSelectedItem, View view) {
         this.nSelectedItem = nSelectedItem;
+        notifyDataSetChanged();
+
     }
 
-    public JustVpnAPI.StatsDataModel getSelectedItem() {
+    public JustVpnAPI.ServerDataModel getSelectedItem() {
         return getItem(nSelectedItem);
     }
 }
