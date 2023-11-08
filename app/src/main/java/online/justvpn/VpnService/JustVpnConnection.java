@@ -86,7 +86,7 @@ public class JustVpnConnection implements Runnable {
                     try {
                         Thread.sleep(3000);
                     } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+                        Log.d("JUSTVPN:","Exception: " + e + e.getMessage());;
                     }
                 }
                 else

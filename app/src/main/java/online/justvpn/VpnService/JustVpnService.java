@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class JustVpnService extends VpnService {
     private Builder mBuilder;
-    private JustVpnConnection mVpnConnection;
+    private JustVpnConnection mVpnConnection = null;
 
     // Connection thread reference
     private AtomicReference<Thread> mConnectionThreadReference;
@@ -57,6 +57,15 @@ public class JustVpnService extends VpnService {
         JustVpnAPI.ServerDataModel ServerDataModel = (JustVpnAPI.ServerDataModel) intent.getSerializableExtra("ServerDataModel");
 
         // Create connection reference
+        if (mVpnConnection != null)
+        {
+            mVpnConnection.Disconnect();
+            if (mConnectionThreadReference.get() != null)
+            {
+                mConnectionThreadReference.get().interrupt();
+                mConnectionThreadReference.set(null);
+            }
+        }
         mVpnConnection = new JustVpnConnection(this, ServerDataModel);
         Thread thread = new Thread(mVpnConnection);
 
@@ -81,10 +90,14 @@ public class JustVpnService extends VpnService {
         if (mVpnConnection != null)
         {
             mVpnConnection.Disconnect();
+            mVpnConnection = null;
         }
 
-        mVpnConnection = null;
-        mConnectionThreadReference = null;
+        if (mConnectionThreadReference.get() != null)
+        {
+            mConnectionThreadReference.get().interrupt();
+            mConnectionThreadReference.set(null);
+        }
     }
 
     @Override

@@ -193,6 +193,7 @@ public class HomeFragment extends Fragment {
 
                 @Override
                 public void onGetStatsError(VolleyError error) {
+                    Log.d("JUSTVPN" , "Server download error: " + error);
 
                 }
             });
