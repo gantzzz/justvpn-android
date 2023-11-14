@@ -10,8 +10,8 @@ android {
         applicationId "online.justvpn"
         minSdk 26
         targetSdk 33
-        versionCode 53
-        versionName "NG: UI recovers connection state after onResume - bufgix"
+        versionCode 54
+        versionName "NG: UI fix crash on status update"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

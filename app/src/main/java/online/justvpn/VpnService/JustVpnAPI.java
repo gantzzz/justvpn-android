@@ -27,6 +27,11 @@ public class JustVpnAPI {
     static final int CONTROL_ACTION_GET_PARAMETERS = 4;
     static final int CONTROL_ACTION_CONFIGURED = 5;
     static final int CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN = 6;
+    static final int CONTROL_ACTION_GET_PUBLIC_KEY = 7;
+    static final int CONTROL_ACTION_USE_PUBLIC_KEY = 8;
+    static final int CONTROL_ACTION_USE_SESSION_KEY = 9;
+    static final int CONTROL_ACTION_USE_SESSION_IV = 10;
+    static final int STATUS_FURTHER_ENCRYPTED = 11;
 
     public static final String CONTROL_ACTION_CONNECT_TEXT = "action:connect";
     public static final String CONTROL_ACTION_KEEPALIVE_TEXT = "action:keepalive";
@@ -35,7 +40,12 @@ public class JustVpnAPI {
     public static final String CONTROL_ACTION_GET_PARAMETERS_TEXT = "action:getparameters";
     public static final String CONTROL_ACTION_CONFIGURED_TEXT = "action:configured";
     public static final String CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN_TEXT = "action:verifysubscription";
+    public static final String CONTROL_ACTION_GET_PUBLIC_KEY_TEXT = "action:getpublickey";
+    public static final String CONTROL_ACTION_USE_PUBLIC_KEY_TEXT = "action:usepublickey";
 
+    public static final String CONTROL_ACTION_USE_SESSION_KEY_TEXT = "action:usesessionkey";
+    public static final String CONTROL_ACTION_USE_SESSION_IV_TEXT = "action:usesessioniv";
+    public static final String STATUS_FURTHER_ENCRYPTED_TEXT = "status:furtherencrypted";
     public static String actionToText(int action)
     {
         String action_text = "";
@@ -61,6 +71,21 @@ public class JustVpnAPI {
                 break;
             case CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN:
                 action_text = CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN_TEXT;
+                break;
+            case CONTROL_ACTION_GET_PUBLIC_KEY:
+                action_text = CONTROL_ACTION_GET_PUBLIC_KEY_TEXT;
+                break;
+            case CONTROL_ACTION_USE_PUBLIC_KEY:
+                action_text = CONTROL_ACTION_USE_PUBLIC_KEY_TEXT;
+                break;
+            case CONTROL_ACTION_USE_SESSION_KEY:
+                action_text = CONTROL_ACTION_USE_SESSION_KEY_TEXT;
+                break;
+            case CONTROL_ACTION_USE_SESSION_IV:
+                action_text = CONTROL_ACTION_USE_SESSION_IV_TEXT;
+                break;
+            case STATUS_FURTHER_ENCRYPTED:
+                action_text = STATUS_FURTHER_ENCRYPTED_TEXT;
                 break;
             default:
                 break;
@@ -104,6 +129,21 @@ public class JustVpnAPI {
                 break;
             case CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN_TEXT:
                 act = CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN;
+                break;
+            case CONTROL_ACTION_GET_PUBLIC_KEY_TEXT:
+                act = CONTROL_ACTION_GET_PUBLIC_KEY;
+                break;
+            case CONTROL_ACTION_USE_PUBLIC_KEY_TEXT:
+                act = CONTROL_ACTION_USE_PUBLIC_KEY;
+                break;
+            case CONTROL_ACTION_USE_SESSION_KEY_TEXT:
+                act = CONTROL_ACTION_USE_SESSION_KEY;
+                break;
+            case CONTROL_ACTION_USE_SESSION_IV_TEXT:
+                act = CONTROL_ACTION_USE_SESSION_IV;
+                break;
+            case STATUS_FURTHER_ENCRYPTED_TEXT:
+                act = STATUS_FURTHER_ENCRYPTED;
                 break;
             default:
                 break;

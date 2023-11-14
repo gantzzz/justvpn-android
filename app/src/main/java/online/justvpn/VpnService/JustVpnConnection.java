@@ -20,9 +20,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import online.justvpn.Definitions.Connection;
+import online.justvpn.JCrypto.JCrypto;
 
 public class JustVpnConnection implements Runnable {
     private Thread mReceiverThread;
@@ -31,12 +33,14 @@ public class JustVpnConnection implements Runnable {
 
     ParcelFileDescriptor mVPNInterface = null;
     private int mMTU;
-
+    private int mMaxBuffLen = 1500; // used to allocate data buffers
     private Connection.State mConnectionState = Connection.State.IDLE;
     private VpnService.Builder mBuilder;
     private VpnService mService;
     private JustVpnAPI.ServerDataModel mServerAddress;
     private DatagramChannel mServerChannel;
+
+    private JCrypto m_Crypto = null;
 
     // This is the time in milliseconds indicating how often the server will send keepalive control messages
     private int mKeepaliveIntervalMs = - 1;
@@ -165,6 +169,7 @@ public class JustVpnConnection implements Runnable {
     }
 
     private void start(SocketAddress server) throws IOException, InterruptedException {
+        m_Crypto = null; // cleanup crypto on new connect
         setConnectionState(Connection.State.CONNECTING);
         // Connect to the server
         mServerChannel = DatagramChannel.open();
@@ -220,10 +225,13 @@ public class JustVpnConnection implements Runnable {
         // Start VPN routine
         startReceiverThread();
 
+        // Try to enable encryption
+        sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
+
         // process outgoing packages
         int nEmptyPacketCounter = 0;
         FileInputStream in = new FileInputStream(mVPNInterface.getFileDescriptor());
-        ByteBuffer packet = ByteBuffer.allocate(mMTU);
+        ByteBuffer packet = ByteBuffer.allocate(mMaxBuffLen);
 
         while (mConnectionState == Connection.State.ACTIVE)
         {
@@ -232,8 +240,11 @@ public class JustVpnConnection implements Runnable {
             if (length > 0)
             {
                 // Write the outgoing packet to the tunnel.
+                ByteBuffer actualSizeBuffer = ByteBuffer.allocate(length);
                 packet.limit(length);
-                mServerChannel.write(packet);
+                actualSizeBuffer.put(packet);
+                actualSizeBuffer.position(0);
+                send_to_server(actualSizeBuffer);
                 packet.clear();
                 nEmptyPacketCounter = 0;
             }
@@ -294,13 +305,14 @@ public class JustVpnConnection implements Runnable {
         {
             try
             {
-                ByteBuffer packet = ByteBuffer.allocate(mMTU);
+                ByteBuffer packet = ByteBuffer.allocate(mMaxBuffLen);
                 FileOutputStream out = new FileOutputStream(mVPNInterface.getFileDescriptor());
 
                 while (mConnectionState == Connection.State.ACTIVE)
                 {
                     // Read the incoming packet from the tunnel.
-                    int len = mServerChannel.read(packet);
+                    //int len = mServerChannel.read(packet);
+                    int len = read_from_server(packet);
                     if (len > 0)
                     {
                         // Ignore control messages, which start with zero.
@@ -342,6 +354,31 @@ public class JustVpnConnection implements Runnable {
                 if (sReason.equals("reason:timedout"))
                 {
                     setConnectionState(Connection.State.TIMED_OUT);
+                }
+                break;
+            case JustVpnAPI.CONTROL_ACTION_USE_PUBLIC_KEY:
+                // here p consists of 0 - control flag + control_text + ; and then the key itself
+                int offSet = 1 + JustVpnAPI.CONTROL_ACTION_USE_PUBLIC_KEY_TEXT.length() + 1;
+                p.position(offSet);
+                byte[] publicKey = new byte[len - offSet];
+                p.get(publicKey);
+                // generate encrypted session key
+                m_Crypto = new JCrypto(publicKey);
+                if (m_Crypto.GenerateSessionKey() == false)
+                {
+                    Log.e("JUSTVPN","Could not generate session key");
+                }
+                else
+                {
+                    sendControlMsg(JustVpnAPI.CONTROL_ACTION_USE_SESSION_KEY, m_Crypto.GetEncryptedSessionKey());
+                    sendControlMsg(JustVpnAPI.CONTROL_ACTION_USE_SESSION_IV, m_Crypto.GetEncryptedIV());
+                }
+                break;
+            case JustVpnAPI.STATUS_FURTHER_ENCRYPTED:
+                Log.d("JUSTVPN","The session is now encrypted");
+                if (m_Crypto != null)
+                {
+                    m_Crypto.SetEncryptionEnabled(true);
                 }
                 break;
             default:
@@ -392,7 +429,12 @@ public class JustVpnConnection implements Runnable {
                 {
                     case "mtu":
                         mMTU = Short.parseShort(value);
-                        mBuilder.setMtu(Short.parseShort(value));
+                        // in case of AES encryption, sometimes encrypted data exceeds the MTU,
+                        // which causes packets corruption on the wire.
+                        // Lower down the mtu a little to make sure we don't corrupt data
+                        int mtu = Integer.parseInt(value);
+                        mtu = mtu - (mtu/5);
+                        mBuilder.setMtu((short)mtu); // here we set less MTU to fit in case of encryption
                         break;
                     case "address":
                         mBuilder.addAddress(value, Integer.parseInt(parameter.split(":")[2]));
@@ -468,8 +510,9 @@ public class JustVpnConnection implements Runnable {
     }
 
     int sendControlMsg(int control_action, String sParam) throws IOException {
-        ByteBuffer packet = ByteBuffer.allocate(128);
         String action = JustVpnAPI.actionToText(control_action);
+
+        ByteBuffer packet = null;
 
         int nSent = 0;
 
@@ -479,14 +522,97 @@ public class JustVpnConnection implements Runnable {
             {
                 action += ";" + sParam;
             }
+            packet = ByteBuffer.allocate(action.length() + 1);
 
-            packet.put((byte) 0).put(action.getBytes()).flip(); // control message always starts with 0
-            packet.position(0);
-            nSent = mServerChannel.write(packet);
+            packet.put((byte) 0); // control message always starts with 0
+            packet.put(action.getBytes());
+            packet.flip();
+            nSent = send_to_server(packet);
             packet.clear();
         }
 
         return nSent;
+    }
+
+    int sendControlMsg(int control_action, byte[] bytes) throws IOException {
+        String action = JustVpnAPI.actionToText(control_action);
+
+        ByteBuffer packet = ByteBuffer.allocate(1+ action.length() + 1 + bytes.length); // 0 + control_text + ;
+
+        int nSent = 0;
+
+        if (!action.isEmpty())
+        {
+            packet.put((byte) 0); // control message always starts with 0
+            packet.put(action.getBytes());
+            packet.put((byte) ';');
+            packet.put(bytes);
+            packet.position(0);
+            nSent = send_to_server(packet);
+            packet.clear();
+        }
+
+        return nSent;
+    }
+
+    int send_to_server(ByteBuffer buffer)
+    {
+        int nSent = 0;
+        try {
+            if (m_Crypto != null && m_Crypto.IsEncryptionEnabled())
+            {
+                byte[] encrypted = m_Crypto.AESEncrypt(buffer.array());
+                nSent = mServerChannel.write(ByteBuffer.wrap(encrypted));
+            }
+            else
+            {
+                nSent = mServerChannel.write(buffer);
+            }
+        } catch (IOException e) {
+            Log.d("JUSTVPN", "an exception occured: " + e);
+        }
+
+        return nSent;
+    }
+
+    int read_from_server(ByteBuffer packet)
+    {
+        int nReceived = 0;
+        try {
+            if (m_Crypto != null && m_Crypto.IsEncryptionEnabled())
+            {
+                ByteBuffer encrypted = ByteBuffer.allocate(mMaxBuffLen);
+                nReceived = mServerChannel.read(encrypted);
+                ByteBuffer actualSizeBuffer = ByteBuffer.allocate(nReceived);
+                encrypted.position(0);
+                encrypted.limit(nReceived);
+
+                actualSizeBuffer.put(encrypted);
+                actualSizeBuffer.position(0);
+                byte[] decrypted = m_Crypto.AESDecrypt(actualSizeBuffer.array());
+                if (decrypted != null)
+                {
+                    packet.limit(decrypted.length);
+                    packet.put(decrypted);
+                    packet.position(0);
+                    nReceived = decrypted.length;
+                }
+                else
+                {
+                    nReceived = 0;
+                }
+
+            }
+            else
+            {
+                nReceived = mServerChannel.read(packet);
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return nReceived;
     }
 
     int sendControlMsg(int control_action) throws IOException {
