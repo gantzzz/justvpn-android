@@ -1,5 +1,7 @@
 package online.justvpn.JCrypto;
 
+import android.util.Log;
+
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -95,6 +97,7 @@ public class JCrypto {
 
         } catch (Exception e)
         {
+            Log.d("Justvpn", "Encrypt failed: " + e.toString());
             return encrypted;
         }
 
@@ -114,6 +117,7 @@ public class JCrypto {
 
         } catch (Exception e)
         {
+            Log.d("Justvpn", "Decrypt failed: " + e.toString());
             return decrypted;
         }
 

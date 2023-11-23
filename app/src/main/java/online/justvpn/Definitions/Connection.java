@@ -7,6 +7,7 @@ public class Connection {
         CONNECTING,    // this connection is being initialized
         DISCONNECTING, // the client is disconnecting
         CONNECTED,     // handshake complete and the interface is configured
+        ENCRYPTED,     // The connection is active and encrypted
         ACTIVE,        // connection is established completely and IP packets are being forwarded
         DISCONNECTED,  // the client is not connected anymore
         NO_SLOTS,      // selected server cannot handle any more connections as it's full

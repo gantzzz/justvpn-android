@@ -1,15 +1,21 @@
 <resources>
     <string name="app_name">justvpn</string>
     <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="title_settings">Settings</string>
     <string name="title_notifications">Notifications</string>
     <string name="select_location">Select location</string>
     <string name="select_fastest_location">Fastest location</string>
     <string name="status_tap_to_connect">Tap the lock to connect</string>
     <string name="status_connecting">Connecting...</string>
     <string name="status_connected">Connected</string>
+    <string name="status_encrypted">Connected (encrypted)</string>
     <string name="status_disconnecting">Disconnecting...</string>
     <string name="status_handshake_failed">Connection failed</string>
     <string name="status_reconnecting">Reconnecting ...</string>
+    <string name="enable_encryption">Use e2e AES encryption</string>
+    <string name="settings_change_dialog_title">Settings update</string>
+    <string name="settings_change_dialog_text">You have to restart connection to apply new settings</string>
+
+
 
 </resources>

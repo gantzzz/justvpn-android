@@ -2,7 +2,9 @@ package online.justvpn.VpnService;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
@@ -16,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.time.Duration;
@@ -48,12 +51,15 @@ public class JustVpnConnection implements Runnable {
     // The number of attempts to handshake with the server
     private int MAX_HANDSHAKE_ATTEMPTS = 10;
 
-    JustVpnConnection(JustVpnService service, JustVpnAPI.ServerDataModel ServerDataModel) // TODO: ", Server server"
+    private JustVpnAPI.JustvpnSettings mSettings;
+
+    JustVpnConnection(JustVpnService service, JustVpnAPI.ServerDataModel ServerDataModel, JustVpnAPI.JustvpnSettings Settings) // TODO: ", Server server"
     {
         mService = service;
         mServerAddress = ServerDataModel;
         mReceiverThread = null;
         mCheckConnectionThread = null;
+        mSettings = Settings;
     }
 
     public JustVpnAPI.ServerDataModel GetServerDataModel()
@@ -74,40 +80,55 @@ public class JustVpnConnection implements Runnable {
                 final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress.sIp), 8811);
                 start(serverAddress);
             }
-            catch (IOException | IllegalArgumentException | IllegalStateException | InterruptedException e)
+            catch (InterruptedException e)
+            {
+                // stop re-attempts on interrupt
+                break;
+            }
+            catch (IOException e)
             {
                 Log.d("JUSTVPN:", "An exception occurred: " + e);
             }
-            finally
+
+            // we got disconnected by some reason either we detected the traffic
+            // is not flowing through or the server has disconnected us for some reason
+            // We want to protect our traffic to come though public network,
+            // so keep the VPN tunnel established and keep reconnecting.
+            if (mConnectionState != Connection.State.DISCONNECTED)
             {
-                // we got disconnected by some reason either we detected the traffic
-                // is not flowing through or the server has disconnected us for some reason
-                // We want to protect our traffic to come though public network,
-                // so keep the VPN tunnel established and keep reconnecting.
-                if (mConnectionState != Connection.State.DISCONNECTED)
+                // retry
+                setConnectionState(Connection.State.RECONNECTING);
+
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e)
                 {
-                    setConnectionState(Connection.State.RECONNECTING);
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException e) {
-                        Log.d("JUSTVPN:","Exception: " + e + e.getMessage());;
-                    }
+                    break;
                 }
-                else
+            }
+            else
+            {
+                // give up
+                if (mReceiverThread != null)
                 {
-                    if ( mVPNInterface != null)
-                    {
-                        try {
-                            mVPNInterface.close();
-                            mVPNInterface = null;
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                    mReceiverThread.interrupt();
+                }
+                if (mCheckConnectionThread != null)
+                {
+                    mCheckConnectionThread.interrupt();
+                }
+                if ( mVPNInterface != null)
+                {
+                    try {
+                        mVPNInterface.close();
+                        mVPNInterface = null;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                    setConnectionState(Connection.State.DISCONNECTED);
                 }
             }
         }
+        setConnectionState(Connection.State.DISCONNECTED);
     }
 
     public void Disconnect()
@@ -116,37 +137,30 @@ public class JustVpnConnection implements Runnable {
 
             if (mConnectionState.equals(Connection.State.ACTIVE))
             {
-                if (Thread.currentThread().equals(this)) // only if running inside the connection thread
+                Thread thread = new Thread(() ->
                 {
-                    sendControlMsg(JustVpnAPI.CONTROL_ACTION_DISCONNECT);
-                }
-                else
-                {
-                    Thread thread = new Thread(() ->
-                    {
-                        try
-                        {
-                            sendControlMsg(JustVpnAPI.CONTROL_ACTION_DISCONNECT);
-                        }
-                        catch (Exception e)
-                        {
-                            e.printStackTrace();
-                        }
-                    });
-
-                    thread.start();
                     try
                     {
-                        thread.join();
+                        sendControlMsg(JustVpnAPI.CONTROL_ACTION_DISCONNECT);
+                        setConnectionState(Connection.State.DISCONNECTING);
                     }
-                    catch (InterruptedException e)
+                    catch (Exception e)
                     {
                         e.printStackTrace();
                     }
+                });
+
+                thread.start();
+                try
+                {
+                    thread.join();
+                }
+                catch (InterruptedException e)
+                {
+                    e.printStackTrace();
                 }
             }
 
-            setConnectionState(Connection.State.DISCONNECTING);
             if (mVPNInterface != null)
             {
                 mVPNInterface.close();
@@ -168,7 +182,13 @@ public class JustVpnConnection implements Runnable {
         setConnectionState(Connection.State.DISCONNECTED);
     }
 
-    private void start(SocketAddress server) throws IOException, InterruptedException {
+    private void start(SocketAddress server) throws IOException, InterruptedException
+    {
+        if (mServerChannel != null)
+        {
+            mServerChannel.close();
+        }
+
         m_Crypto = null; // cleanup crypto on new connect
         setConnectionState(Connection.State.CONNECTING);
         // Connect to the server
@@ -224,16 +244,23 @@ public class JustVpnConnection implements Runnable {
 
         // Start VPN routine
         startReceiverThread();
-
-        // Try to enable encryption
         sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
+        // Try to enable encryption
+        if (mSettings != null)
+        {
+            if (mSettings.mIsEcnryptionEnabled)
+            {
+                //sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
+            }
+        }
 
         // process outgoing packages
         int nEmptyPacketCounter = 0;
         FileInputStream in = new FileInputStream(mVPNInterface.getFileDescriptor());
         ByteBuffer packet = ByteBuffer.allocate(mMaxBuffLen);
 
-        while (mConnectionState == Connection.State.ACTIVE)
+        while (mConnectionState == Connection.State.ACTIVE ||
+               mConnectionState == Connection.State.ENCRYPTED)
         {
             // Read the outgoing packet from the input stream.
             int length = in.read(packet.array());
@@ -241,6 +268,7 @@ public class JustVpnConnection implements Runnable {
             {
                 // Write the outgoing packet to the tunnel.
                 ByteBuffer actualSizeBuffer = ByteBuffer.allocate(length);
+                packet.flip();
                 packet.limit(length);
                 actualSizeBuffer.put(packet);
                 actualSizeBuffer.position(0);
@@ -269,7 +297,8 @@ public class JustVpnConnection implements Runnable {
         mCheckConnectionThread = new Thread(() ->
         {
             while (mConnectionState.equals(Connection.State.ACTIVE) ||
-                    mConnectionState.equals(Connection.State.CONNECTED))
+                   mConnectionState.equals(Connection.State.CONNECTED) ||
+                   mConnectionState.equals(Connection.State.ENCRYPTED))
             {
                 Duration delta = Duration.between(mLastKeepaliveReceivedTimestamp, Instant.now());
                 if (delta.toMillis() > mKeepaliveIntervalMs * 3)
@@ -380,6 +409,7 @@ public class JustVpnConnection implements Runnable {
                 {
                     m_Crypto.SetEncryptionEnabled(true);
                 }
+                setConnectionState(Connection.State.ENCRYPTED);
                 break;
             default:
                 break;
@@ -412,12 +442,11 @@ public class JustVpnConnection implements Runnable {
             String parameters = new String(packet.array(), 1, nParemLen - 1, US_ASCII).trim();
 
             if (!(parameters.contains("mtu") &&
-                    parameters.contains("address") &&
-                    parameters.contains("route") &&
-                    parameters.contains("dns")))
+                  parameters.contains("address") &&
+                  parameters.contains("route") &&
+                  parameters.contains("dns")))
             {
-
-                throw new IllegalArgumentException("Bad parameters: " + parameters);
+                Log.d("JUSTVPN", "bad parameters: " + parameters);
             }
 
             for (String parameter : parameters.split(";"))
@@ -474,7 +503,7 @@ public class JustVpnConnection implements Runnable {
                 Selector selector = Selector.open();
                 mServerChannel.register(selector, SelectionKey.OP_READ);
 
-                if (selector.select(1000) > 0) {
+                if (selector.select(30000) > 0) {
                     // The channel is readable, so we can read the response
                     Set<SelectionKey> selectedKeys = selector.selectedKeys();
                     for (SelectionKey key : selectedKeys) {
@@ -490,10 +519,15 @@ public class JustVpnConnection implements Runnable {
                         {
                             key.cancel();
                         };
+                        try
+                        {
+                            mServerChannel.configureBlocking(true);
+                            bHandshakeOK = true;
+                        } catch (IllegalBlockingModeException e)
+                        {
+                            bHandshakeOK = false;
+                        }
 
-                        mServerChannel.configureBlocking(true);
-
-                        bHandshakeOK = true;
                         break; // we have been connected to the server
                     }
                 }

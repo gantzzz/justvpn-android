@@ -1,8 +1,11 @@
 package online.justvpn.ui.home;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
@@ -11,7 +14,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -27,15 +32,23 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.android.volley.VolleyError;
+
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
+
 import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
 import online.justvpn.VpnService.JustVpnAPI;
 import online.justvpn.VpnService.JustVpnService;
+import online.justvpn.databinding.FragmentSettingsBinding;
 import online.justvpn.ui.adaptors.LocationSelectorAdapter;
 import online.justvpn.Definitions.Connection;
+import online.justvpn.ui.settings.SettingsFragment;
 
 public class HomeFragment extends Fragment {
 
@@ -45,9 +58,6 @@ public class HomeFragment extends Fragment {
     private List<JustVpnAPI.ServerDataModel> mServerStats;
 
     Connection.State mState = Connection.State.IDLE;
-
-    private boolean mVpnServiceRunning = false;
-
     BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -104,7 +114,6 @@ public class HomeFragment extends Fragment {
         //        new ViewModelProvider(this).get(HomeViewModel.class);
 
         binding = FragmentHomeBinding.inflate(inflater, container, false);
-
         return binding.getRoot();
     }
 
@@ -113,6 +122,12 @@ public class HomeFragment extends Fragment {
         updateServersList(false);
         setupOnOffButtonOnClickListener();
         requestVpnServicePermissionDialog();
+    }
+
+    private void RestartVpnConnection()
+    {
+        stopVpnService();
+        startVpnService();
     }
 
     private void requestVpnServicePermissionDialog()
@@ -216,12 +231,13 @@ public class HomeFragment extends Fragment {
         {
             case IDLE:
             case DISCONNECTED:
-            default:
                 StartConnection();
                 break;
             case CONNECTING:
             case CONNECTED:
             case ACTIVE:
+            case ENCRYPTED:
+            default:
                 stopVpnService();
                 break;
         }
@@ -290,6 +306,10 @@ public class HomeFragment extends Fragment {
                 SetStatusViewText(R.string.status_connected);
                 iv.setImageDrawable(getResources().getDrawable(R.drawable.vpn_on_icon));
                 break;
+            case ENCRYPTED:
+                SetStatusViewText(R.string.status_encrypted);
+                iv.setImageDrawable(getResources().getDrawable(R.drawable.vpn_on_icon_enc));
+                break;
             case DISCONNECTING:
                 SetStatusViewText(R.string.status_disconnecting);
                 iv.setImageDrawable(getResources().getDrawable(R.drawable.lock_icon));
@@ -327,7 +347,7 @@ public class HomeFragment extends Fragment {
     private void startVpnService()
     {
         // Get the selected item's ip address
-        Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
+        Spinner spinner = getView().findViewById(R.id.locationSelectorSpinner);
         LocationSelectorAdapter ad = (LocationSelectorAdapter) spinner.getAdapter();
         JustVpnAPI.ServerDataModel server = ad.getSelectedItem();
 
@@ -347,10 +367,20 @@ public class HomeFragment extends Fragment {
 
         Intent intent = new Intent(c, JustVpnService.class);
 
-        intent.putExtra("ServerDataModel", server);
-        c.startService(intent);
+        JustVpnAPI.JustvpnSettings settings = getSettings();
 
-        mVpnServiceRunning = true;
+        intent.putExtra("ServerDataModel", server);
+        intent.putExtra("settings", settings);
+        c.startService(intent);
+    }
+
+    private JustVpnAPI.JustvpnSettings getSettings()
+    {
+        JustVpnAPI.JustvpnSettings s = new JustVpnAPI.JustvpnSettings();
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("preferences", Context.MODE_PRIVATE);
+        s.mIsEcnryptionEnabled = sharedPreferences.getBoolean("encryption", true);
+
+        return s;
     }
 
     private JustVpnAPI.ServerDataModel getFastestLocation()
@@ -372,7 +402,6 @@ public class HomeFragment extends Fragment {
         Intent intent = new Intent(c, JustVpnService.class);
         intent.putExtra("action", "stop");
         c.startService(intent);
-        mVpnServiceRunning = false;
     }
 
     private void StartConnectingAnimation()

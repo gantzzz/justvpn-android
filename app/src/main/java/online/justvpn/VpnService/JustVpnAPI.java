@@ -155,6 +155,10 @@ public class JustVpnAPI {
         void onGetStatsReady(List<ServerDataModel> servers);
         void onGetStatsError(VolleyError error);
     }
+    public static class JustvpnSettings implements Serializable
+    {
+        public Boolean mIsEcnryptionEnabled = false;
+    }
     public static class ServerDataModel implements Serializable
     {
         public int mId = -1;

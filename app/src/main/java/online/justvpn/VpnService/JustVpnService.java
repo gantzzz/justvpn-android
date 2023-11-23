@@ -55,18 +55,14 @@ public class JustVpnService extends VpnService {
             }
         }
         JustVpnAPI.ServerDataModel ServerDataModel = (JustVpnAPI.ServerDataModel) intent.getSerializableExtra("ServerDataModel");
+        JustVpnAPI.JustvpnSettings Settings = (JustVpnAPI.JustvpnSettings) intent.getSerializableExtra("settings");
 
         // Create connection reference
         if (mVpnConnection != null)
         {
-            mVpnConnection.Disconnect();
-            if (mConnectionThreadReference.get() != null)
-            {
-                mConnectionThreadReference.get().interrupt();
-                mConnectionThreadReference.set(null);
-            }
+            StopVpnConnection();
         }
-        mVpnConnection = new JustVpnConnection(this, ServerDataModel);
+        mVpnConnection = new JustVpnConnection(this, ServerDataModel, Settings);
         Thread thread = new Thread(mVpnConnection);
 
         mConnectionThreadReference = new AtomicReference<Thread>();
@@ -90,22 +86,25 @@ public class JustVpnService extends VpnService {
         if (mVpnConnection != null)
         {
             mVpnConnection.Disconnect();
-            mVpnConnection = null;
         }
 
         if (mConnectionThreadReference.get() != null)
         {
             mConnectionThreadReference.get().interrupt();
-            mConnectionThreadReference.set(null);
         }
+        mConnectionThreadReference.set(null);
+        mVpnConnection = null;
     }
 
     @Override
     public void onDestroy() {
         Log.d("JUSTVPN:","Service destroyed id: " + this.hashCode());
-        if (mConnectionThreadReference.get() != null)
+        if (mConnectionThreadReference != null)
         {
-            mConnectionThreadReference.get().interrupt();
+            if (mConnectionThreadReference.get() != null)
+            {
+                mConnectionThreadReference.get().interrupt();
+            }
         }
         unregisterReceiver(mBroadcastReceiver);
         super.onDestroy();

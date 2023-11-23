@@ -10,8 +10,8 @@ android {
         applicationId "online.justvpn"
         minSdk 26
         targetSdk 33
-        versionCode 54
-        versionName "NG: UI fix crash on status update"
+        versionCode 55
+        versionName "Add encryption support in settings"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
