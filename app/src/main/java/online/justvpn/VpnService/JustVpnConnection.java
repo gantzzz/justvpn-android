@@ -244,13 +244,12 @@ public class JustVpnConnection implements Runnable {
 
         // Start VPN routine
         startReceiverThread();
-        sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
         // Try to enable encryption
         if (mSettings != null)
         {
             if (mSettings.mIsEcnryptionEnabled)
             {
-                //sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
+                sendControlMsg(JustVpnAPI.CONTROL_ACTION_GET_PUBLIC_KEY);
             }
         }
 
@@ -337,7 +336,8 @@ public class JustVpnConnection implements Runnable {
                 ByteBuffer packet = ByteBuffer.allocate(mMaxBuffLen);
                 FileOutputStream out = new FileOutputStream(mVPNInterface.getFileDescriptor());
 
-                while (mConnectionState == Connection.State.ACTIVE)
+                while (mConnectionState == Connection.State.ACTIVE ||
+                       mConnectionState == Connection.State.ENCRYPTED)
                 {
                     // Read the incoming packet from the tunnel.
                     //int len = mServerChannel.read(packet);

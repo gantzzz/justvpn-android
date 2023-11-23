@@ -10,8 +10,8 @@ android {
         applicationId "online.justvpn"
         minSdk 26
         targetSdk 33
-        versionCode 55
-        versionName "Add encryption support in settings"
+        versionCode 56
+        versionName "Fix broken encryption"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
