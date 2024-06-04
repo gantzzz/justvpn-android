@@ -1,8 +1,6 @@
 package online.justvpn.ui.home;
-import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -10,13 +8,12 @@ import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.net.VpnService;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Vibrator;
-import android.preference.PreferenceManager;
 import android.util.Log;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,25 +27,20 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 import com.android.volley.VolleyError;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 
 import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
-import online.justvpn.VpnService.JustVpnAPI;
+import online.justvpn.JAPI.JustVpnAPI;
 import online.justvpn.VpnService.JustVpnService;
-import online.justvpn.databinding.FragmentSettingsBinding;
 import online.justvpn.ui.adaptors.LocationSelectorAdapter;
 import online.justvpn.Definitions.Connection;
-import online.justvpn.ui.settings.SettingsFragment;
 
 public class HomeFragment extends Fragment {
 
@@ -91,6 +83,7 @@ public class HomeFragment extends Fragment {
         Intent i = new Intent("online.justvpn.get.connection.info");
         requireContext().sendBroadcast(i);
     }
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
         super.onResume();
@@ -98,14 +91,14 @@ public class HomeFragment extends Fragment {
         IntentFilter filter = new IntentFilter();
         filter.addAction("online.justvpn.connection.state");
         filter.addAction("online.justvpn.connection.info");
-        getContext().registerReceiver(mBroadcastReceiver, filter);
+        requireContext().registerReceiver(mBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
 
         RequestConnectionInfo();
     }
     @Override
     public void onPause() {
         super.onPause();
-        getContext().unregisterReceiver(mBroadcastReceiver);
+        requireContext().unregisterReceiver(mBroadcastReceiver);
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,

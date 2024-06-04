@@ -1,4 +1,4 @@
-package online.justvpn.VpnService;
+package online.justvpn.JAPI;
 
 import android.content.Context;
 
@@ -13,25 +13,29 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.Serializable;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class JustVpnAPI {
 
     // TODO: make this class a singletone as we won't need more than 1 instances of it for HTTP
-    static final int CONTROL_ACTION_CONNECT = 0;
-    static final int CONTROL_ACTION_KEEPALIVE = 1;
-    static final int CONTROL_ACTION_DISCONNECT = 2;
-    static final int CONTROL_ACTION_DISCONNECTED = 3;
-    static final int CONTROL_ACTION_GET_PARAMETERS = 4;
-    static final int CONTROL_ACTION_CONFIGURED = 5;
-    static final int CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN = 6;
-    static final int CONTROL_ACTION_GET_PUBLIC_KEY = 7;
-    static final int CONTROL_ACTION_USE_PUBLIC_KEY = 8;
-    static final int CONTROL_ACTION_USE_SESSION_KEY = 9;
-    static final int CONTROL_ACTION_USE_SESSION_IV = 10;
-    static final int STATUS_FURTHER_ENCRYPTED = 11;
+    public static final int CONTROL_ACTION_CONNECT = 0;
+    public static final int CONTROL_ACTION_KEEPALIVE = 1;
+    public static final int CONTROL_ACTION_DISCONNECT = 2;
+    public static final int CONTROL_ACTION_DISCONNECTED = 3;
+    public static final int CONTROL_ACTION_GET_PARAMETERS = 4;
+    public static final int CONTROL_ACTION_CONFIGURED = 5;
+    public static final int CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN = 6;
+    public static final int CONTROL_ACTION_GET_PUBLIC_KEY = 7;
+    public static final int CONTROL_ACTION_USE_PUBLIC_KEY = 8;
+    public static final int CONTROL_ACTION_USE_SESSION_KEY = 9;
+    public static final int CONTROL_ACTION_USE_SESSION_IV = 10;
+    public static final int STATUS_FURTHER_ENCRYPTED = 11;
 
     public static final String CONTROL_ACTION_CONNECT_TEXT = "action:connect";
     public static final String CONTROL_ACTION_KEEPALIVE_TEXT = "action:keepalive";
@@ -191,6 +195,8 @@ public class JustVpnAPI {
                     Objects.equals(sIp, other.sIp);
         }
     }
+
+
     public void getStats(Context context, onGetStatsInterface callback)
     {
         if (context == null)

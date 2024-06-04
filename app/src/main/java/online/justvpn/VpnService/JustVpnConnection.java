@@ -2,9 +2,7 @@ package online.justvpn.VpnService;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
@@ -23,40 +21,36 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import online.justvpn.Definitions.Connection;
+import online.justvpn.JAPI.JustVpnAPI;
 import online.justvpn.JCrypto.JCrypto;
 
 public class JustVpnConnection implements Runnable {
     private Thread mReceiverThread;
     private Thread mCheckConnectionThread;
-    Instant mLastKeepaliveReceivedTimestamp;
+    Instant mLastKeepAliveReceivedTimestamp;
 
     ParcelFileDescriptor mVPNInterface = null;
-    private int mMTU;
-    private int mMaxBuffLen = 1500; // used to allocate data buffers
+    private final int mMaxBuffLen = 1500; // used to allocate data buffers
     private Connection.State mConnectionState = Connection.State.IDLE;
     private VpnService.Builder mBuilder;
-    private VpnService mService;
-    private JustVpnAPI.ServerDataModel mServerAddress;
+    private final VpnService mService;
+    private final JustVpnAPI.ServerDataModel mServerDataModel;
     private DatagramChannel mServerChannel;
 
     private JCrypto m_Crypto = null;
 
     // This is the time in milliseconds indicating how often the server will send keepalive control messages
-    private int mKeepaliveIntervalMs = - 1;
+    private int mKeepAliveIntervalMs = - 1;
 
-    // The number of attempts to handshake with the server
-    private int MAX_HANDSHAKE_ATTEMPTS = 10;
-
-    private JustVpnAPI.JustvpnSettings mSettings;
+    private final JustVpnAPI.JustvpnSettings mSettings;
 
     JustVpnConnection(JustVpnService service, JustVpnAPI.ServerDataModel ServerDataModel, JustVpnAPI.JustvpnSettings Settings) // TODO: ", Server server"
     {
         mService = service;
-        mServerAddress = ServerDataModel;
+        mServerDataModel = ServerDataModel;
         mReceiverThread = null;
         mCheckConnectionThread = null;
         mSettings = Settings;
@@ -64,7 +58,7 @@ public class JustVpnConnection implements Runnable {
 
     public JustVpnAPI.ServerDataModel GetServerDataModel()
     {
-        return mServerAddress;
+        return mServerDataModel;
     }
     public Connection.State GetConnectionState()
     {
@@ -77,7 +71,7 @@ public class JustVpnConnection implements Runnable {
         {
             try
             {
-                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerAddress.sIp), 8811);
+                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerDataModel.sIp), 8811);
                 start(serverAddress);
             }
             catch (InterruptedException e)
@@ -237,7 +231,7 @@ public class JustVpnConnection implements Runnable {
 
         setConnectionState(Connection.State.ACTIVE);
 
-        mLastKeepaliveReceivedTimestamp = Instant.now();
+        mLastKeepAliveReceivedTimestamp = Instant.now();
 
         // start check connection thread
         startCheckConnectionThread();
@@ -299,16 +293,16 @@ public class JustVpnConnection implements Runnable {
                    mConnectionState.equals(Connection.State.CONNECTED) ||
                    mConnectionState.equals(Connection.State.ENCRYPTED))
             {
-                Duration delta = Duration.between(mLastKeepaliveReceivedTimestamp, Instant.now());
-                if (delta.toMillis() > mKeepaliveIntervalMs * 3)
+                Duration delta = Duration.between(mLastKeepAliveReceivedTimestamp, Instant.now());
+                if (delta.toMillis() > mKeepAliveIntervalMs * 3)
                 {
                     // We don't get keepalives for a while indicate timeout and start reconnecting routine
                     setConnectionState(Connection.State.TIMED_OUT);
                 }
                 try {
-                    if (mKeepaliveIntervalMs > 0)
+                    if (mKeepAliveIntervalMs > 0)
                     {
-                        Thread.sleep(mKeepaliveIntervalMs);
+                        Thread.sleep(mKeepAliveIntervalMs);
                     }
                     else {
                         Thread.sleep(15000);
@@ -375,7 +369,7 @@ public class JustVpnConnection implements Runnable {
             case JustVpnAPI.CONTROL_ACTION_KEEPALIVE:
                 // Response to the server with keepalive
                 sendControlMsg(JustVpnAPI.CONTROL_ACTION_KEEPALIVE);
-                mLastKeepaliveReceivedTimestamp = Instant.now();
+                mLastKeepAliveReceivedTimestamp = Instant.now();
                 break;
 
             case JustVpnAPI.CONTROL_ACTION_DISCONNECTED:
@@ -457,7 +451,7 @@ public class JustVpnConnection implements Runnable {
                 switch (key)
                 {
                     case "mtu":
-                        mMTU = Short.parseShort(value);
+                        int mMTU = Short.parseShort(value);
                         // in case of AES encryption, sometimes encrypted data exceeds the MTU,
                         // which causes packets corruption on the wire.
                         // Lower down the mtu a little to make sure we don't corrupt data
@@ -475,7 +469,7 @@ public class JustVpnConnection implements Runnable {
                         mBuilder.addDnsServer(value);
                         break;
                     case "keepalive_interval_ms":
-                        mKeepaliveIntervalMs = Integer.parseInt(value);
+                        mKeepAliveIntervalMs = Integer.parseInt(value);
                         break;
                     default:
                         break;
@@ -493,6 +487,8 @@ public class JustVpnConnection implements Runnable {
         ByteBuffer packet = ByteBuffer.allocate(128);
 
         boolean bHandshakeOK = false;
+        // The number of attempts to handshake with the server
+        int MAX_HANDSHAKE_ATTEMPTS = 10;
         for (int i = 0; i < MAX_HANDSHAKE_ATTEMPTS; i++)
         {
             if (sendControlMsg(JustVpnAPI.CONTROL_ACTION_CONNECT) > 0 )

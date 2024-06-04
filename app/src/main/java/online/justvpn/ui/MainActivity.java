@@ -1,4 +1,4 @@
-package online.justvpn;
+package online.justvpn.ui;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -23,6 +23,7 @@ import androidx.navigation.ui.NavigationUI;
 
 import java.util.List;
 
+import online.justvpn.R;
 import online.justvpn.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {

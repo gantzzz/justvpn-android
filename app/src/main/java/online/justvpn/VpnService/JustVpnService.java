@@ -6,9 +6,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.VpnService;
 
+import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.RequiresApi;
+
 import java.util.concurrent.atomic.AtomicReference;
+
+import online.justvpn.JAPI.JustVpnAPI;
 
 
 public class JustVpnService extends VpnService {
@@ -18,7 +23,7 @@ public class JustVpnService extends VpnService {
     // Connection thread reference
     private AtomicReference<Thread> mConnectionThreadReference;
 
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
 
@@ -110,12 +115,13 @@ public class JustVpnService extends VpnService {
         super.onDestroy();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onCreate()
     {
         IntentFilter filter = new IntentFilter();
         filter.addAction("online.justvpn.get.connection.info");
-        registerReceiver(mBroadcastReceiver, filter);
+        registerReceiver(mBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
         super.onCreate();
     }
 }
