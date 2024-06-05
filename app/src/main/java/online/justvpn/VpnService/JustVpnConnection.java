@@ -71,7 +71,7 @@ public class JustVpnConnection implements Runnable {
         {
             try
             {
-                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(mServerDataModel.sIp), 8811);
+                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName("justvpn.online"), 8810);
                 start(serverAddress);
             }
             catch (InterruptedException e)
@@ -441,6 +441,7 @@ public class JustVpnConnection implements Runnable {
                   parameters.contains("dns")))
             {
                 Log.d("JUSTVPN", "bad parameters: " + parameters);
+                return false;
             }
 
             for (String parameter : parameters.split(";"))
@@ -491,7 +492,7 @@ public class JustVpnConnection implements Runnable {
         int MAX_HANDSHAKE_ATTEMPTS = 10;
         for (int i = 0; i < MAX_HANDSHAKE_ATTEMPTS; i++)
         {
-            if (sendControlMsg(JustVpnAPI.CONTROL_ACTION_CONNECT) > 0 )
+            if (sendControlMsg(JustVpnAPI.CONTROL_ACTION_CONNECT, mServerDataModel.sCountry) > 0 )
             {
                 mServerChannel.configureBlocking(false);
 

@@ -73,6 +73,9 @@ public class LocationSelectorAdapter extends BaseAdapter{
             case "NL":
                 icon = R.mipmap.ic_nl_foreground;
                 break;
+            case "RS":
+                icon = R.mipmap.ic_rs_foreground;
+                break;
             default:
                 icon = R.mipmap.ic_world_foreground;
                 break;
