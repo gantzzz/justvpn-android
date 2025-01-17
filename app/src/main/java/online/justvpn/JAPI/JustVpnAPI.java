@@ -1,6 +1,7 @@
 package online.justvpn.JAPI;
 
 import android.content.Context;
+import android.util.Pair;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class JustVpnAPI {
 
@@ -162,6 +164,7 @@ public class JustVpnAPI {
     public static class JustvpnSettings implements Serializable
     {
         public Boolean mIsEcnryptionEnabled = false;
+        public Set<Pair<String, String>> mLocations;
     }
     public static class ServerDataModel implements Serializable
     {
@@ -241,10 +244,7 @@ public class JustVpnAPI {
                         e.printStackTrace();
                     }
                 }
-                , error ->
-                {
-                    callback.onGetStatsError(error);
-                });
+                , callback::onGetStatsError);
 
         queue.add(signalRequest);
         queue.start();

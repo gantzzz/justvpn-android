@@ -71,7 +71,7 @@ public class JustVpnConnection implements Runnable {
         {
             try
             {
-                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName("justvpn.online"), 8810);
+                final SocketAddress serverAddress = new InetSocketAddress(InetAddress.getByName(GetServerDataModel().sIp), 8811);
                 start(serverAddress);
             }
             catch (InterruptedException e)

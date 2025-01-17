@@ -23,6 +23,21 @@ public class JustVpnService extends VpnService {
     // Connection thread reference
     private AtomicReference<Thread> mConnectionThreadReference;
 
+    private void sendConnectionInfo(Context context)
+    {
+        if (mVpnConnection != null)
+        {
+            Intent i = new Intent("online.justvpn.connection.info");
+
+            JustVpnAPI.ServerDataModel ServerDataModel = mVpnConnection.GetServerDataModel();
+            int state = mVpnConnection.GetConnectionState().ordinal();
+
+            i.putExtra("ServerDataModel", ServerDataModel);
+            i.putExtra("state", state);
+            context.sendBroadcast(i);
+        }
+    }
+
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -31,17 +46,7 @@ public class JustVpnService extends VpnService {
             Log.e("Receiver", "Received action: " + action);
 
             if ("online.justvpn.get.connection.info".equals(intent.getAction())) {
-                if (mVpnConnection != null)
-                {
-                    Intent i = new Intent("online.justvpn.connection.info");
-
-                    JustVpnAPI.ServerDataModel ServerDataModel = mVpnConnection.GetServerDataModel();
-                    int state = mVpnConnection.GetConnectionState().ordinal();
-
-                    i.putExtra("ServerDataModel", ServerDataModel);
-                    i.putExtra("state", state);
-                    context.sendBroadcast(i);
-                }
+                sendConnectionInfo(context);
             }
         }
     };

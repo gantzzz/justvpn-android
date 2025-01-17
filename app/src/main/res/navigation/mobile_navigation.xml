@@ -17,8 +17,14 @@
         tools:layout="@layout/fragment_settings" />
 
     <fragment
-        android:id="@+id/navigation_notifications"
+        android:id="@+id/navigation_sign"
+        android:name="online.justvpn.ui.sign.SignFragment"
+        android:label="@string/title_sign_fragment"
+        tools:layout="@layout/fragment_sign" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
         android:name="online.justvpn.ui.profile.ProfileFragment"
-        android:label="@string/title_profile"
+        android:label="@string/title_profile_fragment"
         tools:layout="@layout/fragment_profile" />
 </navigation>

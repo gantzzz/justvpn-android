@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.location.Location;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import online.justvpn.Managers.LocationManager;
 import online.justvpn.R;
 import online.justvpn.databinding.FragmentHomeBinding;
 import online.justvpn.JAPI.JustVpnAPI;
@@ -58,13 +60,11 @@ public class HomeFragment extends Fragment {
 
             if ("online.justvpn.connection.state".equals(intent.getAction())) {
                 int s = intent.getIntExtra("state", -1);
-                mState = Connection.State.values()[s];
-                OnConnectionStatusChanged();
+                OnConnectionStatusChanged(Connection.State.values()[s]);
             }
             else if ("online.justvpn.connection.info".equals(intent.getAction())) {
                 int s = intent.getIntExtra("state", -1);
-                mState = Connection.State.values()[s];
-                OnConnectionStatusChanged();
+                OnConnectionStatusChanged(Connection.State.values()[s]);
 
 
                 // Set selected server
@@ -77,7 +77,7 @@ public class HomeFragment extends Fragment {
         }
     };
 
-    private void RequestConnectionInfo()
+    private void requestConnectionInfo()
     {
         // Request connection info from the service
         Intent i = new Intent("online.justvpn.get.connection.info");
@@ -93,7 +93,7 @@ public class HomeFragment extends Fragment {
         filter.addAction("online.justvpn.connection.info");
         requireContext().registerReceiver(mBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
 
-        RequestConnectionInfo();
+        requestConnectionInfo();
     }
     @Override
     public void onPause() {
@@ -112,7 +112,9 @@ public class HomeFragment extends Fragment {
 
     @MainThread
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        updateServersList(false);
+        LocationManager manager = LocationManager.getInstance(getContext());
+
+        drawServersList(null);
         setupOnOffButtonOnClickListener();
         requestVpnServicePermissionDialog();
     }
@@ -138,11 +140,13 @@ public class HomeFragment extends Fragment {
         // already permitted
     }
 
-    private void drawServersList(JustVpnAPI.ServerDataModel ServerDataModel)
+    private void drawServersList(JustVpnAPI.ServerDataModel selected)
     {
+        mServerStats = LocationManager.getInstance(getContext()).getLocations();
         if (mServerStats == null) {
             return;
         }
+
         Spinner spinner = requireView().findViewById(R.id.locationSelectorSpinner);
 
         ArrayList<JustVpnAPI.ServerDataModel> adapterItems = new ArrayList<>();
@@ -154,18 +158,15 @@ public class HomeFragment extends Fragment {
 
         int nSelectedItemIndex = -1;
         // add the rest of the stats
-        for (JustVpnAPI.ServerDataModel s: mServerStats)
-        {
-            adapterItems.add(s);
-        }
+        adapterItems.addAll(mServerStats);
 
         LocationSelectorAdapter ad = new LocationSelectorAdapter(getContext(), adapterItems);
         spinner.setAdapter(ad);
 
         // Set selected server
-        if (ServerDataModel != null)
+        if (selected != null)
         {
-            nSelectedItemIndex = adapterItems.indexOf(ServerDataModel);
+            nSelectedItemIndex = adapterItems.indexOf(selected);
         }
 
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -183,32 +184,6 @@ public class HomeFragment extends Fragment {
         if (nSelectedItemIndex != -1)
         {
             spinner.setSelection(nSelectedItemIndex);
-        }
-    }
-
-    private void updateServersList(boolean bForced)
-    {
-        // Download only if we don't have it yet, or if forced
-        if (bForced || mServerStats == null)
-        {
-            mApi.getStats(getContext(), new JustVpnAPI.onGetStatsInterface() {
-                @Override
-                public void onGetStatsReady(List<JustVpnAPI.ServerDataModel> stats) {
-                    mServerStats = stats;
-                    drawServersList(null);
-                    RequestConnectionInfo();
-                }
-
-                @Override
-                public void onGetStatsError(VolleyError error) {
-                    Log.d("JUSTVPN" , "Server download error: " + error);
-
-                }
-            });
-        }
-        else
-        {
-            drawServersList(null);
         }
     }
 
@@ -279,7 +254,15 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void OnConnectionStatusChanged() {
+    private void OnConnectionStatusChanged(Connection.State newState) {
+        if (mState != newState)
+        {
+            mState = newState;
+        }
+        else
+        {
+            return;
+        }
 
         ImageView iv = requireView().findViewById(R.id.buttonImageView);
 
@@ -298,6 +281,8 @@ public class HomeFragment extends Fragment {
             case ACTIVE:
                 SetStatusViewText(R.string.status_connected);
                 iv.setImageDrawable(getResources().getDrawable(R.drawable.vpn_on_icon));
+                // update selected server
+                requestConnectionInfo();
                 break;
             case ENCRYPTED:
                 SetStatusViewText(R.string.status_encrypted);

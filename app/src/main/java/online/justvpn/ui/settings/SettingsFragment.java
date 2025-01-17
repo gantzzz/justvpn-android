@@ -87,7 +87,7 @@ public class SettingsFragment extends Fragment {
     private void SetupSettings()
     {
         // Setup for encryption
-        Boolean encryption = sharedPreferences.getBoolean("encryption", true);
+        boolean encryption = sharedPreferences.getBoolean("encryption", true);
         CheckBox cb = binding.getRoot().findViewById(R.id.checkBoxSettingEncryption);
         cb.setChecked(encryption);
         cb.setOnClickListener(new View.OnClickListener() {

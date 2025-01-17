@@ -2,4 +2,6 @@
 <resources>
     <color name="app_color">#166968</color>
     <color name="white">#ffffff</color>
+    <color name="signin_button_color">#1E8D8C</color> <!-- Example color for the sign-in button -->
+    <color name="signup_button_color">#1E8D8C</color> <!-- Example color for the sign-up button -->
 </resources>

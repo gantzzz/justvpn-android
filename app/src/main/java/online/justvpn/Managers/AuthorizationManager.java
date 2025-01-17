@@ -18,6 +18,12 @@ import java.util.Map;
 public class AuthorizationManager {
 
     private static AuthorizationManager mInstance = null;
+    private boolean m_IsSignedIn = false;
+
+    public boolean IsSignedIn()
+    {
+        return m_IsSignedIn;
+    }
 
     public static AuthorizationManager getInstance() {
         if (mInstance == null) {
@@ -75,7 +81,7 @@ public class AuthorizationManager {
         params.put("email", username);
 
         RequestQueue queue = Volley.newRequestQueue(context);
-        String signin_url = "http://justvpn.online:8001/signin";
+        String signin_url = "http://justvpn.online/signin";
         StringRequest request = new StringRequest(Request.Method.POST, signin_url,
                 resp ->
                 {
