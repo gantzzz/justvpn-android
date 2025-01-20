@@ -50,6 +50,8 @@ public class HomeFragment extends Fragment {
     private final JustVpnAPI mApi = new JustVpnAPI();
 
     private List<JustVpnAPI.ServerDataModel> mServerStats;
+    LocationManager mLocationManager = null;
+
 
     Connection.State mState = Connection.State.IDLE;
     BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -68,10 +70,16 @@ public class HomeFragment extends Fragment {
 
 
                 // Set selected server
-                if (mServerStats != null && !mServerStats.equals(Connection.State.IDLE))
+                if (mServerStats != null)
                 {
                     JustVpnAPI.ServerDataModel ServerDataModel = (JustVpnAPI.ServerDataModel) intent.getSerializableExtra("ServerDataModel");
                     drawServersList(ServerDataModel);
+                }
+            }
+            else if ("online.justvpn.locations.ready".equals(intent.getAction())) {
+                if (mServerStats == null)
+                {
+                    drawServersList(null);
                 }
             }
         }
@@ -91,6 +99,7 @@ public class HomeFragment extends Fragment {
         IntentFilter filter = new IntentFilter();
         filter.addAction("online.justvpn.connection.state");
         filter.addAction("online.justvpn.connection.info");
+        filter.addAction("online.justvpn.locations.ready");
         requireContext().registerReceiver(mBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
 
         requestConnectionInfo();
@@ -105,6 +114,7 @@ public class HomeFragment extends Fragment {
                              ViewGroup container, Bundle savedInstanceState) {
         //HomeViewModel homeViewModel =
         //        new ViewModelProvider(this).get(HomeViewModel.class);
+        // Request locations right away
 
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         return binding.getRoot();
@@ -112,8 +122,11 @@ public class HomeFragment extends Fragment {
 
     @MainThread
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        LocationManager manager = LocationManager.getInstance(getContext());
+        // reset state
+        mState = Connection.State.DISCONNECTED;
+        SetStatusViewText(R.string.status_tap_to_connect);
 
+        mLocationManager = LocationManager.getInstance(getContext());
         drawServersList(null);
         setupOnOffButtonOnClickListener();
         requestVpnServicePermissionDialog();
@@ -142,7 +155,7 @@ public class HomeFragment extends Fragment {
 
     private void drawServersList(JustVpnAPI.ServerDataModel selected)
     {
-        mServerStats = LocationManager.getInstance(getContext()).getLocations();
+        mServerStats = mLocationManager.getLocations();
         if (mServerStats == null) {
             return;
         }

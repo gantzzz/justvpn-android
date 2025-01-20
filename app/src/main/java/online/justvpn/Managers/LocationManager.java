@@ -1,6 +1,7 @@
 package online.justvpn.Managers;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Pair;
 
@@ -17,7 +18,7 @@ import com.google.gson.reflect.TypeToken;
 
 public class LocationManager{
     private Thread mThread;
-    private final long mInterval = 120000; // Interval between each cycle in milliseconds
+    private final long mInterval = 500; // Interval between each cycle in milliseconds
     private boolean mRunning = false;
     private final Context mContext;
     private LocationManager(Context context)
@@ -77,6 +78,9 @@ public class LocationManager{
         String json = new Gson().toJson(locations);
         sharedPreferences.edit().putString("locations", json).apply();
 
+        // update UI
+        Intent i = new Intent("online.justvpn.locations.ready");
+        mContext.getApplicationContext().sendBroadcast(i);
     }
 
     public List<JustVpnAPI.ServerDataModel> getLocations()
@@ -105,6 +109,8 @@ public class LocationManager{
             @Override
             public void onGetStatsError(VolleyError error) {
                 // don't do anything as we are cycling anyways
+                int i = 0;
+                i = i + 1;
             };
         });
     }

@@ -91,7 +91,7 @@ public class JustVpnConnection implements Runnable {
             if (mConnectionState != Connection.State.DISCONNECTED)
             {
                 // retry
-                setConnectionState(Connection.State.RECONNECTING);
+                sendConnectionState(Connection.State.RECONNECTING);
 
                 try {
                     Thread.sleep(3000);
@@ -122,7 +122,7 @@ public class JustVpnConnection implements Runnable {
                 }
             }
         }
-        setConnectionState(Connection.State.DISCONNECTED);
+        sendConnectionState(Connection.State.DISCONNECTED);
     }
 
     public void Disconnect()
@@ -136,7 +136,7 @@ public class JustVpnConnection implements Runnable {
                     try
                     {
                         sendControlMsg(JustVpnAPI.CONTROL_ACTION_DISCONNECT);
-                        setConnectionState(Connection.State.DISCONNECTING);
+                        sendConnectionState(Connection.State.DISCONNECTING);
                     }
                     catch (Exception e)
                     {
@@ -173,7 +173,7 @@ public class JustVpnConnection implements Runnable {
             Log.d("JUSTVPN:","Exception: " + e + e.getMessage());
         }
 
-        setConnectionState(Connection.State.DISCONNECTED);
+        sendConnectionState(Connection.State.DISCONNECTED);
     }
 
     private void start(SocketAddress server) throws IOException, InterruptedException
@@ -184,7 +184,7 @@ public class JustVpnConnection implements Runnable {
         }
 
         m_Crypto = null; // cleanup crypto on new connect
-        setConnectionState(Connection.State.CONNECTING);
+        sendConnectionState(Connection.State.CONNECTING);
         // Connect to the server
         mServerChannel = DatagramChannel.open();
 
@@ -192,7 +192,7 @@ public class JustVpnConnection implements Runnable {
 
         if (!mService.protect(socket)) // fails if user permissions are not given, see requestVpnServicePermissionDialog()
         {
-            setConnectionState(Connection.State.FAILED);
+            sendConnectionState(Connection.State.FAILED);
             throw new IllegalStateException("Cannot protect the tunnel");
         }
 
@@ -202,18 +202,18 @@ public class JustVpnConnection implements Runnable {
         // Handshake with the server
         if (!handshake())
         {
-            setConnectionState(Connection.State.HANDSHAKE_FAILED);
+            sendConnectionState(Connection.State.HANDSHAKE_FAILED);
             return;
         }
 
         // Configure VPN interface
         if (!configure())
         {
-            setConnectionState(Connection.State.FAILED);
+            sendConnectionState(Connection.State.FAILED);
             return;
         }
 
-        setConnectionState(Connection.State.CONNECTED);
+        sendConnectionState(Connection.State.CONNECTED);
 
         // start VPN routine
         if (mVPNInterface != null)
@@ -229,7 +229,7 @@ public class JustVpnConnection implements Runnable {
         // token=debug_debug will allow the server to accept this connection even if this is an unpaid one
         sendControlMsg(JustVpnAPI.CONTROL_ACTION_VERIFY_SUBSCRIPTION_TOKEN, "token=debug_debug");
 
-        setConnectionState(Connection.State.ACTIVE);
+        sendConnectionState(Connection.State.ACTIVE);
 
         mLastKeepAliveReceivedTimestamp = Instant.now();
 
@@ -297,7 +297,7 @@ public class JustVpnConnection implements Runnable {
                 if (delta.toMillis() > mKeepAliveIntervalMs * 3)
                 {
                     // We don't get keepalives for a while indicate timeout and start reconnecting routine
-                    setConnectionState(Connection.State.TIMED_OUT);
+                    sendConnectionState(Connection.State.TIMED_OUT);
                 }
                 try {
                     if (mKeepAliveIntervalMs > 0)
@@ -376,7 +376,7 @@ public class JustVpnConnection implements Runnable {
                 String sReason = JustVpnAPI.getReason(new String(p.array(), 1, len -1));
                 if (sReason.equals("reason:timedout"))
                 {
-                    setConnectionState(Connection.State.TIMED_OUT);
+                    sendConnectionState(Connection.State.TIMED_OUT);
                 }
                 break;
             case JustVpnAPI.CONTROL_ACTION_USE_PUBLIC_KEY:
@@ -403,14 +403,14 @@ public class JustVpnConnection implements Runnable {
                 {
                     m_Crypto.SetEncryptionEnabled(true);
                 }
-                setConnectionState(Connection.State.ENCRYPTED);
+                sendConnectionState(Connection.State.ENCRYPTED);
                 break;
             default:
                 break;
         }
     }
 
-    private void setConnectionState(Connection.State state)
+    private void sendConnectionState(Connection.State state)
     {
         mConnectionState = state;
         Intent intent = new Intent("online.justvpn.connection.state");
